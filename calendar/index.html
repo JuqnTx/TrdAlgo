@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario · TrdAlgo · NQ=F</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --panel-2: #1f232c;
+    --border: #262b35;
+    --text: #e6e8ee;
+    --muted: #6b7280;
+    --weekend: #3a3f4b;
+    --accent: #4f8cff;
+    --today-bg: #4f8cff;
+    --today-text: #ffffff;
+    --hover: #262b35;
+    --out-of-range: #2a2d34;
+    --up: #22c55e;
+    --down: #ef4444;
+    --up-text: #4ade80;
+    --down-text: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  h1 .sub {
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 8px;
+    font-size: 13px;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .views {
+    display: inline-flex;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .views button {
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    border-right: 1px solid var(--border);
+  }
+  .views button:last-child { border-right: 0; }
+  .views button:hover { background: var(--hover); }
+  .views button.active {
+    background: var(--accent);
+    color: var(--today-text);
+  }
+  .nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav button {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .nav button:hover:not(:disabled) { background: var(--hover); }
+  .nav button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .nav .today-btn { width: auto; padding: 0 12px; }
+  .current-label {
+    min-width: 200px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  main { padding: 24px; }
+
+  /* ===== MONTH VIEW ===== */
+  .month {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .dow-header {
+    padding: 10px 8px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .dow-header:last-child { border-right: 0; }
+  .dow-header.weekend { color: var(--weekend); }
+  .day-cell {
+    min-height: 90px;
+    padding: 8px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+  }
+  .day-cell:nth-child(7n) { border-right: 0; }
+  .day-cell:hover { background: var(--hover); }
+  .day-cell.weekend { color: var(--weekend); background: rgba(0,0,0,0.15); }
+  .day-cell.weekend .day-num { color: var(--weekend); }
+  .day-cell.other-month .day-num { color: var(--out-of-range); }
+  .day-cell.out-of-range { background: rgba(0,0,0,0.25); cursor: default; }
+  .day-cell.out-of-range .day-num { color: var(--out-of-range); }
+  .day-cell.today .day-num {
+    background: var(--today-bg);
+    color: var(--today-text);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+  .day-num { font-size: 13px; font-weight: 500; }
+  .day-pct {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .day-pct.up { color: var(--up-text); }
+  .day-pct.down { color: var(--down-text); }
+
+  /* ===== WEEK VIEW ===== */
+  .week {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+  .week-day {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 280px;
+  }
+  .week-day .dow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .week-day .num {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .week-day .meta {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .week-day.weekend { background: rgba(0,0,0,0.18); border-color: #21242c; }
+  .week-day.weekend .dow,
+  .week-day.weekend .num { color: var(--weekend); }
+  .week-day.today .num {
+    color: var(--accent);
+  }
+  .week-day.out-of-range { background: rgba(0,0,0,0.3); opacity: 0.5; }
+  .week-day .pct {
+    margin-top: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .week-day .pct.up { color: var(--up-text); }
+  .week-day .pct.down { color: var(--down-text); }
+  .week-day .close {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ===== DAY VIEW ===== */
+  .day {
+    max-width: 600px;
+    margin: 40px auto 0;
+    text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+  }
+  .day .dow {
+    font-size: 16px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .day .num {
+    font-size: 96px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .day .month-year {
+    font-size: 22px;
+    color: var(--text);
+    text-transform: capitalize;
+    margin-bottom: 24px;
+  }
+  .day .meta {
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+    margin-top: 18px;
+  }
+  .day.weekend .num { color: var(--weekend); }
+  .day.today .num { color: var(--accent); }
+
+  .market-panel {
+    max-width: 600px;
+    margin: 16px auto 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .market-panel .ticker {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .market-panel .ret {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+  }
+  .market-panel .ret.up { color: var(--up-text); }
+  .market-panel .ret.down { color: var(--down-text); }
+  .market-panel .ret-pts {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 24px;
+  }
+  .ohlc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .ohlc-cell .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .ohlc-cell .val {
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .market-extra {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .market-extra .row { display: flex; justify-content: space-between; }
+  .market-extra .val { color: var(--text); font-variant-numeric: tabular-nums; }
+  .market-empty {
+    max-width: 600px;
+    margin: 16px auto 0;
+    padding: 18px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .month-stats {
+    max-width: 1100px;
+    margin: 20px auto 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+  .month-stats .stats-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .stats-table { display: flex; flex-direction: column; gap: 2px; }
+  .stats-row {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+  .stats-row.current {
+    background: rgba(79, 140, 255, 0.10);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 0 -8px;
+  }
+  .stats-row.historical {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 10px;
+    font-weight: 600;
+  }
+  .stats-row .year { font-weight: 500; }
+  .stats-row .count { color: var(--muted); font-size: 12px; }
+  .stats-row .val {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    min-width: 80px;
+    text-align: right;
+  }
+  .stats-row .val.up { color: var(--up-text); }
+  .stats-row .val.down { color: var(--down-text); }
+  .stats-row .partial-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== YEAR VIEW ===== */
+  .year {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .mini-month {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .mini-month .title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .mini-grid .mh {
+    font-size: 9px;
+    color: var(--muted);
+    text-align: center;
+    padding: 2px 0;
+    text-transform: uppercase;
+  }
+  .mini-grid .mh.weekend { color: var(--weekend); }
+  .mini-grid .md {
+    font-size: 10px;
+    text-align: center;
+    padding: 3px 0;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .mini-grid .md:hover { background: var(--hover); }
+  .mini-grid .md.weekend { color: var(--weekend); }
+  .mini-grid .md.other { color: transparent; cursor: default; }
+  .mini-grid .md.other:hover { background: transparent; }
+  .mini-grid .md.out-of-range { color: var(--out-of-range); cursor: default; }
+  .mini-grid .md.today {
+    background: var(--accent);
+    color: var(--today-text);
+    font-weight: 600;
+  }
+
+  @media (max-width: 800px) {
+    .year { grid-template-columns: repeat(2, 1fr); }
+    .day-cell { min-height: 60px; }
+  }
+
+  /* ===== SCREENER ===== */
+  .screener {
+    max-width: 1300px;
+    margin: 40px auto 32px;
+    padding: 0 24px;
+  }
+  .screener h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: 0.3px;
+  }
+  .screener .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .screener .filters {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .filter-group .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .chip-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: var(--today-text); }
+  .chip:hover:not(.active) { background: var(--hover); }
+  .chip-actions { display: flex; gap: 12px; margin-top: 8px; }
+  .chip-actions button {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
+  .chip-actions button:hover { color: var(--text); }
+  .range-inputs { display: flex; gap: 8px; align-items: center; }
+  .range-inputs input {
+    flex: 1; min-width: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .range-inputs input::placeholder { color: var(--muted); }
+  .range-inputs span { color: var(--muted); font-size: 12px; }
+
+  .screener-table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .screener-meta {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .screener-meta button {
+    background: transparent;
+    border: 0;
+    color: var(--accent);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  table.screener-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .screener-table th, .screener-table td {
+    padding: 8px 12px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .screener-table th {
+    background: var(--panel-2);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .screener-table th:hover { color: var(--text); }
+  .screener-table th.sort-asc::after { content: ' ▲'; color: var(--accent); }
+  .screener-table th.sort-desc::after { content: ' ▼'; color: var(--accent); }
+  .screener-table th:first-child, .screener-table td:first-child { text-align: left; }
+  .screener-table tbody tr:hover td { background: rgba(255,255,255,0.025); }
+  .screener-table tbody tr:last-child td { border-bottom: 0; }
+  .screener-table td.up { color: var(--up-text); }
+  .screener-table td.down { color: var(--down-text); }
+  .screener-table .month-cell { font-weight: 600; text-transform: capitalize; }
+  .screener-table .empty {
+    text-align: center; color: var(--muted); padding: 30px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Calendario <span class="sub" id="rangeSub">TrdAlgo</span></h1>
+  <div class="controls">
+    <div class="views" id="views">
+      <button data-view="day">Día</button>
+      <button data-view="week">Semana</button>
+      <button data-view="month" class="active">Mes</button>
+      <button data-view="year">Año</button>
+    </div>
+    <div class="nav">
+      <button id="prev" title="Anterior">‹</button>
+      <button id="today" class="today-btn" title="Ir a hoy">Hoy</button>
+      <button id="next" title="Siguiente">›</button>
+    </div>
+    <div class="current-label" id="currentLabel"></div>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<section class="screener" id="screener">
+  <h2>Screener mensual</h2>
+  <div class="subtitle">Cada fila es un mes individual. Click en un encabezado para ordenar.</div>
+  <div class="filters">
+    <div class="filter-group">
+      <div class="label">Año</div>
+      <div class="chip-list" id="filterYears"></div>
+      <div class="chip-actions">
+        <button data-action="year-all">Todos</button>
+        <button data-action="year-none">Ninguno</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="label">Mes</div>
+      <div class="chip-list" id="filterMonths"></div>
+      <div class="chip-actions">
+        <button data-action="month-all">Todos</button>
+        <button data-action="month-none">Ninguno</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="label">Retorno total %</div>
+      <div class="range-inputs">
+        <input type="number" step="0.1" id="retMin" placeholder="mín">
+        <span>—</span>
+        <input type="number" step="0.1" id="retMax" placeholder="máx">
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="label">Mediana diaria %</div>
+      <div class="range-inputs">
+        <input type="number" step="0.01" id="medMin" placeholder="mín">
+        <span>—</span>
+        <input type="number" step="0.01" id="medMax" placeholder="máx">
+      </div>
+    </div>
+  </div>
+  <div class="screener-table-wrap">
+    <div class="screener-meta">
+      <span id="screenerCount">— meses</span>
+      <button id="screenerReset">Restablecer filtros</button>
+    </div>
+    <table class="screener-table">
+      <thead>
+        <tr>
+          <th data-col="key">Mes</th>
+          <th data-col="totalReturn">Retorno total %</th>
+          <th data-col="median">Mediana diaria %</th>
+          <th data-col="std">σ diaria %</th>
+          <th data-col="bestDay">Mejor día</th>
+          <th data-col="worstDay">Peor día</th>
+          <th data-col="days">Días</th>
+          <th data-col="volume">Volumen total</th>
+        </tr>
+      </thead>
+      <tbody id="screenerBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<script id="market-data" type="application/json">
+/* MARKET_DATA_PLACEHOLDER */
+{"ticker":"NQ=F","start":"2021-01-04","end":"2026-05-11","rows":1347,"data":{"2021-01-04":{"o":12889.0,"h":12959.75,"l":12522.5,"c":12685.5,"v":650472,"ret":null},"2021-01-05":{"o":12682.75,"h":12809.0,"l":12612.0,"c":12793.5,"v":483173,"ret":0.008514},"2021-01-06":{"o":12800.25,"h":12844.25,"l":12491.25,"c":12616.75,"v":755618,"ret":-0.013816},"2021-01-07":{"o":12658.5,"h":12959.0,"l":12646.5,"c":12928.0,"v":435939,"ret":0.02467},"2021-01-08":{"o":12927.0,"h":13125.0,"l":12919.0,"c":13097.25,"v":508107,"ret":0.013092},"2021-01-11":{"o":13093.25,"h":13105.25,"l":12871.75,"c":12897.0,"v":454751,"ret":-0.015289},"2021-01-12":{"o":12910.75,"h":12959.0,"l":12767.25,"c":12890.25,"v":461733,"ret":-0.000523},"2021-01-13":{"o":12882.5,"h":13003.0,"l":12820.75,"c":12972.25,"v":416295,"ret":0.006361},"2021-01-14":{"o":12975.5,"h":13028.75,"l":12881.0,"c":12901.0,"v":417583,"ret":-0.005492},"2021-01-15":{"o":12909.0,"h":12931.25,"l":12743.5,"c":12802.25,"v":539769,"ret":-0.007654},"2021-01-19":{"o":12774.25,"h":13032.75,"l":12727.0,"c":12985.5,"v":481603,"ret":0.014314},"2021-01-20":{"o":13030.0,"h":13327.0,"l":13017.0,"c":13294.25,"v":438765,"ret":0.023777},"2021-01-21":{"o":13288.5,"h":13423.5,"l":13283.25,"c":13395.5,"v":421922,"ret":0.007616},"2021-01-22":{"o":13394.0,"h":13402.25,"l":13300.25,"c":13361.5,"v":407706,"ret":-0.002538},"2021-01-25":{"o":13370.0,"h":13554.5,"l":13189.0,"c":13475.5,"v":663844,"ret":0.008532},"2021-01-26":{"o":13459.75,"h":13599.75,"l":13380.25,"c":13485.5,"v":502390,"ret":0.000742},"2021-01-27":{"o":13551.0,"h":13586.5,"l":12884.75,"c":13105.5,"v":786471,"ret":-0.028178},"2021-01-28":{"o":13052.5,"h":13394.0,"l":12906.25,"c":13186.0,"v":623570,"ret":0.006142},"2021-01-29":{"o":13156.0,"h":13188.0,"l":12829.0,"c":12911.25,"v":738848,"ret":-0.020836},"2021-02-01":{"o":12849.0,"h":13271.5,"l":12727.25,"c":13236.5,"v":549549,"ret":0.025191},"2021-02-02":{"o":13232.5,"h":13509.75,"l":13230.5,"c":13449.0,"v":491671,"ret":0.016054},"2021-02-03":{"o":13506.0,"h":13584.5,"l":13386.75,"c":13394.25,"v":499098,"ret":-0.004071},"2021-02-04":{"o":13429.5,"h":13568.75,"l":13345.25,"c":13547.5,"v":408023,"ret":0.011441},"2021-02-05":{"o":13560.0,"h":13638.5,"l":13519.5,"c":13598.0,"v":431935,"ret":0.003728},"2021-02-08":{"o":13623.75,"h":13693.0,"l":13596.0,"c":13683.0,"v":393927,"ret":0.006251},"2021-02-09":{"o":13683.5,"h":13735.25,"l":13634.0,"c":13680.25,"v":367116,"ret":-0.000201},"2021-02-10":{"o":13698.0,"h":13769.25,"l":13516.75,"c":13643.5,"v":552643,"ret":-0.002686},"2021-02-11":{"o":13662.0,"h":13743.75,"l":13612.5,"c":13729.0,"v":495131,"ret":0.006267},"2021-02-12":{"o":13711.25,"h":13820.75,"l":13646.0,"c":13804.75,"v":392927,"ret":0.005518},"2021-02-16":{"o":13829.5,"h":13900.5,"l":13716.0,"c":13767.75,"v":604657,"ret":-0.00268},"2021-02-17":{"o":13758.25,"h":13785.0,"l":13543.0,"c":13699.75,"v":583565,"ret":-0.004939},"2021-02-18":{"o":13699.5,"h":13723.25,"l":13468.0,"c":13633.0,"v":574576,"ret":-0.004872},"2021-02-19":{"o":13638.25,"h":13729.0,"l":13534.75,"c":13576.0,"v":535194,"ret":-0.004181},"2021-02-22":{"o":13585.0,"h":13629.0,"l":13215.0,"c":13224.25,"v":648527,"ret":-0.02591},"2021-02-23":{"o":13227.0,"h":13335.75,"l":12757.25,"c":13192.0,"v":873273,"ret":-0.002439},"2021-02-24":{"o":13170.75,"h":13334.0,"l":12958.0,"c":13302.0,"v":673353,"ret":0.008338},"2021-02-25":{"o":13304.75,"h":13353.75,"l":12764.0,"c":12831.75,"v":894521,"ret":-0.035352},"2021-02-26":{"o":12802.5,"h":13089.5,"l":12662.25,"c":12911.0,"v":841911,"ret":0.006176},"2021-03-01":{"o":12957.5,"h":13318.0,"l":12946.25,"c":13279.75,"v":513852,"ret":0.028561},"2021-03-02":{"o":13312.25,"h":13328.25,"l":13048.25,"c":13055.25,"v":563138,"ret":-0.016905},"2021-03-03":{"o":13061.25,"h":13192.0,"l":12663.25,"c":12681.75,"v":756448,"ret":-0.028609},"2021-03-04":{"o":12682.0,"h":12797.0,"l":12306.5,"c":12455.0,"v":1049493,"ret":-0.01788},"2021-03-05":{"o":12435.0,"h":12697.75,"l":12207.25,"c":12663.75,"v":1016317,"ret":0.01676},"2021-03-08":{"o":12715.0,"h":12761.25,"l":12281.75,"c":12297.25,"v":749028,"ret":-0.028941},"2021-03-09":{"o":12345.75,"h":12867.5,"l":12326.0,"c":12788.75,"v":644022,"ret":0.039968},"2021-03-10":{"o":12812.0,"h":12993.25,"l":12703.0,"c":12749.25,"v":715961,"ret":-0.003089},"2021-03-11":{"o":12795.25,"h":13119.25,"l":12724.25,"c":13048.25,"v":526139,"ret":0.023452},"2021-03-12":{"o":13055.0,"h":13095.0,"l":12768.25,"c":12933.5,"v":476352,"ret":-0.008794},"2021-03-15":{"o":12950.0,"h":13099.0,"l":12872.0,"c":13078.5,"v":297629,"ret":0.011211},"2021-03-16":{"o":13084.75,"h":13298.0,"l":13056.5,"c":13151.5,"v":240942,"ret":0.005582},"2021-03-17":{"o":13174.75,"h":13283.25,"l":12946.5,"c":13201.5,"v":202697,"ret":0.003802},"2021-03-18":{"o":13200.5,"h":13279.0,"l":12777.5,"c":12795.5,"v":121108,"ret":-0.030754},"2021-03-19":{"o":12818.25,"h":12919.0,"l":12732.75,"c":12808.76,"v":641117,"ret":0.001036},"2021-03-22":{"o":12807.0,"h":13157.0,"l":12788.5,"c":13071.75,"v":478667,"ret":0.020532},"2021-03-23":{"o":13069.0,"h":13172.0,"l":12979.0,"c":13006.25,"v":604250,"ret":-0.005011},"2021-03-24":{"o":13050.25,"h":13145.25,"l":12784.0,"c":12794.0,"v":626538,"ret":-0.016319},"2021-03-25":{"o":12803.0,"h":12859.5,"l":12609.75,"c":12770.5,"v":745797,"ret":-0.001837},"2021-03-26":{"o":12799.75,"h":12988.5,"l":12676.25,"c":12966.75,"v":622214,"ret":0.015367},"2021-03-29":{"o":12975.75,"h":13003.0,"l":12807.5,"c":12944.5,"v":574193,"ret":-0.001716},"2021-03-30":{"o":12975.0,"h":12984.0,"l":12776.5,"c":12878.25,"v":516408,"ret":-0.005118},"2021-03-31":{"o":12894.75,"h":13158.0,"l":12858.25,"c":13089.75,"v":478398,"ret":0.016423},"2021-04-01":{"o":13094.5,"h":13332.5,"l":13090.25,"c":13316.0,"v":436489,"ret":0.017285},"2021-04-05":{"o":13339.0,"h":13615.0,"l":13304.25,"c":13585.5,"v":356725,"ret":0.020239},"2021-04-06":{"o":13603.75,"h":13655.0,"l":13524.25,"c":13570.0,"v":457218,"ret":-0.001141},"2021-04-07":{"o":13580.5,"h":13641.0,"l":13512.5,"c":13604.75,"v":434828,"ret":0.002561},"2021-04-08":{"o":13620.75,"h":13789.75,"l":13615.5,"c":13747.75,"v":435060,"ret":0.010511},"2021-04-09":{"o":13786.5,"h":13841.75,"l":13648.25,"c":13829.5,"v":494768,"ret":0.005946},"2021-04-12":{"o":13817.75,"h":13832.25,"l":13732.0,"c":13808.75,"v":453968,"ret":-0.0015},"2021-04-13":{"o":13825.0,"h":13994.0,"l":13772.75,"c":13975.75,"v":485938,"ret":0.012094},"2021-04-14":{"o":13977.75,"h":14029.0,"l":13772.75,"c":13798.75,"v":662204,"ret":-0.012665},"2021-04-15":{"o":13827.0,"h":14034.25,"l":13789.25,"c":14014.0,"v":524814,"ret":0.015599},"2021-04-16":{"o":14002.0,"h":14059.5,"l":13952.75,"c":14029.5,"v":500612,"ret":0.001106},"2021-04-19":{"o":13989.0,"h":14052.25,"l":13821.0,"c":13897.25,"v":613719,"ret":-0.009427},"2021-04-20":{"o":13900.0,"h":13933.75,"l":13719.25,"c":13794.25,"v":606019,"ret":-0.007412},"2021-04-21":{"o":13740.0,"h":13926.5,"l":13700.5,"c":13919.25,"v":510093,"ret":0.009062},"2021-04-22":{"o":13896.5,"h":13944.75,"l":13701.75,"c":13750.25,"v":623942,"ret":-0.012141},"2021-04-23":{"o":13757.0,"h":13981.0,"l":13737.0,"c":13927.0,"v":450885,"ret":0.012854},"2021-04-26":{"o":13919.75,"h":14039.25,"l":13865.5,"c":14011.5,"v":403664,"ret":0.006067},"2021-04-27":{"o":14024.75,"h":14050.0,"l":13912.5,"c":13953.0,"v":412801,"ret":-0.004175},"2021-04-28":{"o":13955.5,"h":13993.5,"l":13878.0,"c":13892.25,"v":501596,"ret":-0.004354},"2021-04-29":{"o":13973.5,"h":14064.0,"l":13818.5,"c":13953.5,"v":595555,"ret":0.004409},"2021-04-30":{"o":13948.25,"h":13956.75,"l":13819.75,"c":13850.0,"v":555237,"ret":-0.007417},"2021-05-03":{"o":13880.25,"h":13947.5,"l":13772.0,"c":13790.0,"v":473913,"ret":-0.004332},"2021-05-04":{"o":13785.0,"h":13792.5,"l":13380.75,"c":13536.0,"v":667316,"ret":-0.018419},"2021-05-05":{"o":13525.75,"h":13665.5,"l":13462.75,"c":13491.0,"v":520694,"ret":-0.003324},"2021-05-06":{"o":13484.0,"h":13611.5,"l":13388.75,"c":13597.75,"v":567452,"ret":0.007913},"2021-05-07":{"o":13614.5,"h":13818.0,"l":13588.25,"c":13709.75,"v":550632,"ret":0.008237},"2021-05-10":{"o":13718.0,"h":13752.0,"l":13305.5,"c":13356.75,"v":603725,"ret":-0.025748},"2021-05-11":{"o":13316.5,"h":13375.75,"l":13065.25,"c":13346.0,"v":787639,"ret":-0.000805},"2021-05-12":{"o":13321.25,"h":13351.75,"l":12959.75,"c":12998.5,"v":760916,"ret":-0.026038},"2021-05-13":{"o":12968.75,"h":13223.75,"l":12915.0,"c":13100.25,"v":727348,"ret":0.007828},"2021-05-14":{"o":13095.0,"h":13426.25,"l":13071.0,"c":13387.0,"v":468758,"ret":0.021889},"2021-05-17":{"o":13380.25,"h":13448.5,"l":13182.75,"c":13303.5,"v":488299,"ret":-0.006237},"2021-05-18":{"o":13308.5,"h":13432.25,"l":13178.5,"c":13212.0,"v":442088,"ret":-0.006878},"2021-05-19":{"o":13182.0,"h":13243.0,"l":12954.25,"c":13233.5,"v":669351,"ret":0.001627},"2021-05-20":{"o":13220.5,"h":13522.75,"l":13150.75,"c":13486.5,"v":465782,"ret":0.019118},"2021-05-21":{"o":13492.5,"h":13570.0,"l":13395.75,"c":13405.0,"v":457735,"ret":-0.006043},"2021-05-24":{"o":13383.25,"h":13686.0,"l":13356.5,"c":13635.25,"v":368611,"ret":0.017176},"2021-05-25":{"o":13656.5,"h":13738.75,"l":13606.75,"c":13656.25,"v":436157,"ret":0.00154},"2021-05-26":{"o":13670.25,"h":13728.5,"l":13656.0,"c":13700.25,"v":343069,"ret":0.003222},"2021-05-27":{"o":13702.5,"h":13720.75,"l":13620.25,"c":13665.5,"v":388603,"ret":-0.002536},"2021-05-28":{"o":13694.75,"h":13763.5,"l":13662.75,"c":13686.5,"v":366218,"ret":0.001537},"2021-06-01":{"o":13699.0,"h":13773.0,"l":13592.25,"c":13648.75,"v":448000,"ret":-0.002758},"2021-06-02":{"o":13653.25,"h":13712.75,"l":13603.25,"c":13673.75,"v":371449,"ret":0.001832},"2021-06-03":{"o":13679.5,"h":13707.75,"l":13462.25,"c":13529.25,"v":552987,"ret":-0.010568},"2021-06-04":{"o":13531.75,"h":13783.75,"l":13467.75,"c":13766.75,"v":446994,"ret":0.017555},"2021-06-07":{"o":13773.25,"h":13824.0,"l":13691.5,"c":13804.25,"v":397545,"ret":0.002724},"2021-06-08":{"o":13823.0,"h":13917.25,"l":13741.75,"c":13811.5,"v":482546,"ret":0.000525},"2021-06-09":{"o":13813.0,"h":13904.25,"l":13803.5,"c":13814.25,"v":376893,"ret":0.000199},"2021-06-10":{"o":13817.0,"h":13976.5,"l":13726.0,"c":13959.75,"v":492336,"ret":0.010533},"2021-06-11":{"o":13975.5,"h":13997.75,"l":13932.25,"c":13994.25,"v":257733,"ret":0.002471},"2021-06-14":{"o":13999.0,"h":14133.5,"l":13965.25,"c":14124.75,"v":229733,"ret":0.009325},"2021-06-15":{"o":14119.5,"h":14163.0,"l":14009.25,"c":14030.25,"v":178164,"ret":-0.00669},"2021-06-16":{"o":14046.75,"h":14103.75,"l":13840.0,"c":13981.25,"v":124322,"ret":-0.003492},"2021-06-17":{"o":13948.5,"h":14217.75,"l":13850.25,"c":14165.5,"v":113875,"ret":0.013178},"2021-06-18":{"o":14183.75,"h":14214.25,"l":14063.5,"c":14107.43,"v":575363,"ret":-0.004099},"2021-06-21":{"o":14022.75,"h":14144.0,"l":13958.5,"c":14130.0,"v":503663,"ret":0.0016},"2021-06-22":{"o":14136.75,"h":14279.25,"l":14066.5,"c":14258.25,"v":420968,"ret":0.009076},"2021-06-23":{"o":14274.0,"h":14315.75,"l":14231.75,"c":14263.0,"v":366489,"ret":0.000333},"2021-06-24":{"o":14275.25,"h":14422.0,"l":14270.0,"c":14354.25,"v":409864,"ret":0.006398},"2021-06-25":{"o":14365.75,"h":14394.25,"l":14313.25,"c":14339.0,"v":379758,"ret":-0.001062},"2021-06-28":{"o":14350.0,"h":14519.75,"l":14333.25,"c":14512.5,"v":376860,"ret":0.0121},"2021-06-29":{"o":14504.5,"h":14584.75,"l":14468.75,"c":14563.0,"v":360169,"ret":0.00348},"2021-06-30":{"o":14584.75,"h":14598.5,"l":14518.25,"c":14549.0,"v":384458,"ret":-0.000961},"2021-07-01":{"o":14558.5,"h":14606.25,"l":14471.0,"c":14548.5,"v":436419,"ret":-3.4e-05},"2021-07-02":{"o":14543.75,"h":14729.0,"l":14513.25,"c":14713.75,"v":392168,"ret":0.011359},"2021-07-06":{"o":14704.25,"h":14790.0,"l":14625.25,"c":14775.5,"v":557682,"ret":0.004197},"2021-07-07":{"o":14764.5,"h":14883.75,"l":14726.25,"c":14802.25,"v":471450,"ret":0.00181},"2021-07-08":{"o":14812.0,"h":14822.0,"l":14540.5,"c":14712.25,"v":631207,"ret":-0.00608},"2021-07-09":{"o":14710.25,"h":14832.0,"l":14640.75,"c":14810.5,"v":424770,"ret":0.006678},"2021-07-12":{"o":14824.0,"h":14888.5,"l":14785.0,"c":14869.25,"v":362608,"ret":0.003967},"2021-07-13":{"o":14880.0,"h":14994.75,"l":14794.5,"c":14865.0,"v":506392,"ret":-0.000286},"2021-07-14":{"o":14869.75,"h":14996.0,"l":14841.25,"c":14891.75,"v":499191,"ret":0.0018},"2021-07-15":{"o":14895.0,"h":14962.75,"l":14708.25,"c":14787.5,"v":634785,"ret":-0.007001},"2021-07-16":{"o":14778.5,"h":14869.5,"l":14656.0,"c":14670.5,"v":539012,"ret":-0.007912},"2021-07-19":{"o":14675.0,"h":14682.5,"l":14445.0,"c":14540.75,"v":720291,"ret":-0.008844},"2021-07-20":{"o":14593.75,"h":14782.5,"l":14516.75,"c":14722.75,"v":529359,"ret":0.012517},"2021-07-21":{"o":14729.75,"h":14839.5,"l":14668.25,"c":14827.75,"v":404345,"ret":0.007132},"2021-07-22":{"o":14836.75,"h":14982.75,"l":14826.75,"c":14928.5,"v":425426,"ret":0.006795},"2021-07-23":{"o":14979.5,"h":15117.25,"l":14934.25,"c":15098.0,"v":449261,"ret":0.011354},"2021-07-26":{"o":15098.0,"h":15134.0,"l":15038.75,"c":15117.75,"v":391517,"ret":0.001308},"2021-07-27":{"o":15125.25,"h":15131.5,"l":14774.25,"c":14947.75,"v":671793,"ret":-0.011245},"2021-07-28":{"o":14875.75,"h":15074.5,"l":14866.0,"c":15011.5,"v":577186,"ret":0.004265},"2021-07-29":{"o":14984.75,"h":15084.0,"l":14905.0,"c":15037.75,"v":412593,"ret":0.001749},"2021-07-30":{"o":14905.25,"h":14980.0,"l":14811.25,"c":14955.75,"v":505630,"ret":-0.005453},"2021-08-02":{"o":14972.75,"h":15056.25,"l":14932.25,"c":14952.75,"v":446142,"ret":-0.000201},"2021-08-03":{"o":14962.25,"h":15050.0,"l":14849.0,"c":15046.25,"v":520377,"ret":0.006253},"2021-08-04":{"o":15038.0,"h":15108.0,"l":14997.0,"c":15073.5,"v":445703,"ret":0.001811},"2021-08-05":{"o":15081.75,"h":15172.5,"l":15069.25,"c":15167.75,"v":341554,"ret":0.006253},"2021-08-06":{"o":15167.75,"h":15169.75,"l":15047.25,"c":15095.5,"v":425074,"ret":-0.004763},"2021-08-09":{"o":15090.25,"h":15145.5,"l":15003.25,"c":15125.25,"v":361388,"ret":0.001971},"2021-08-10":{"o":15128.75,"h":15157.25,"l":14994.5,"c":15044.5,"v":475298,"ret":-0.005339},"2021-08-11":{"o":15045.0,"h":15119.0,"l":14963.0,"c":15019.5,"v":479700,"ret":-0.001662},"2021-08-12":{"o":15008.5,"h":15090.5,"l":14941.25,"c":15078.5,"v":384239,"ret":0.003928},"2021-08-13":{"o":15079.75,"h":15141.75,"l":15055.25,"c":15125.75,"v":364520,"ret":0.003134},"2021-08-16":{"o":15119.25,"h":15139.0,"l":14917.25,"c":15134.0,"v":590789,"ret":0.000545},"2021-08-17":{"o":15131.5,"h":15133.75,"l":14897.0,"c":14997.5,"v":687897,"ret":-0.009019},"2021-08-18":{"o":14970.25,"h":15037.25,"l":14806.5,"c":14849.25,"v":568846,"ret":-0.009885},"2021-08-19":{"o":14840.0,"h":14999.0,"l":14710.5,"c":14928.0,"v":734184,"ret":0.005303},"2021-08-20":{"o":14943.25,"h":15100.0,"l":14851.0,"c":15086.75,"v":504460,"ret":0.010634},"2021-08-23":{"o":15090.0,"h":15337.5,"l":15086.5,"c":15304.5,"v":412591,"ret":0.014433},"2021-08-24":{"o":15327.0,"h":15384.0,"l":15309.5,"c":15355.5,"v":365577,"ret":0.003332},"2021-08-25":{"o":15362.25,"h":15397.0,"l":15333.0,"c":15364.25,"v":405227,"ret":0.00057},"2021-08-26":{"o":15367.25,"h":15368.25,"l":15255.25,"c":15274.75,"v":564382,"ret":-0.005825},"2021-08-27":{"o":15286.0,"h":15443.75,"l":15265.5,"c":15426.5,"v":441045,"ret":0.009935},"2021-08-30":{"o":15432.75,"h":15617.75,"l":15420.0,"c":15597.5,"v":417563,"ret":0.011085},"2021-08-31":{"o":15605.5,"h":15677.25,"l":15517.75,"c":15582.5,"v":521129,"ret":-0.000962},"2021-09-01":{"o":15599.5,"h":15699.0,"l":15578.5,"c":15609.25,"v":465488,"ret":0.001717},"2021-09-02":{"o":15610.0,"h":15682.0,"l":15551.75,"c":15601.0,"v":463636,"ret":-0.000529},"2021-09-03":{"o":15601.0,"h":15677.5,"l":15552.25,"c":15651.5,"v":462870,"ret":0.003237},"2021-09-07":{"o":15656.0,"h":15708.75,"l":15606.75,"c":15674.75,"v":542055,"ret":0.001485},"2021-09-08":{"o":15671.0,"h":15691.0,"l":15523.75,"c":15620.0,"v":559402,"ret":-0.003493},"2021-09-09":{"o":15610.0,"h":15675.75,"l":15545.75,"c":15558.75,"v":531288,"ret":-0.003921},"2021-09-10":{"o":15561.0,"h":15668.0,"l":15433.5,"c":15441.5,"v":402816,"ret":-0.007536},"2021-09-13":{"o":15452.5,"h":15565.0,"l":15350.25,"c":15436.75,"v":363283,"ret":-0.000308},"2021-09-14":{"o":15452.25,"h":15530.75,"l":15351.25,"c":15387.0,"v":237816,"ret":-0.003223},"2021-09-15":{"o":15395.5,"h":15521.75,"l":15315.25,"c":15504.0,"v":156770,"ret":0.007604},"2021-09-16":{"o":15516.5,"h":15542.0,"l":15369.5,"c":15517.75,"v":105428,"ret":0.000887},"2021-09-17":{"o":15502.75,"h":15547.0,"l":15474.0,"c":15486.67,"v":641864,"ret":-0.002003},"2021-09-20":{"o":15284.0,"h":15338.25,"l":14807.5,"c":15009.5,"v":845911,"ret":-0.030812},"2021-09-21":{"o":14992.0,"h":15163.25,"l":14963.25,"c":15024.0,"v":659780,"ret":0.000966},"2021-09-22":{"o":14992.75,"h":15227.0,"l":14930.5,"c":15163.5,"v":601005,"ret":0.009285},"2021-09-23":{"o":15178.25,"h":15347.0,"l":15175.25,"c":15303.5,"v":514535,"ret":0.009233},"2021-09-24":{"o":15300.25,"h":15334.25,"l":15176.75,"c":15318.75,"v":470511,"ret":0.000997},"2021-09-27":{"o":15319.0,"h":15399.25,"l":15084.0,"c":15194.75,"v":543381,"ret":-0.008095},"2021-09-28":{"o":15172.25,"h":15192.25,"l":14740.75,"c":14764.75,"v":836785,"ret":-0.028299},"2021-09-29":{"o":14769.25,"h":14926.0,"l":14711.0,"c":14739.75,"v":649554,"ret":-0.001693},"2021-09-30":{"o":14769.75,"h":14883.5,"l":14670.25,"c":14682.5,"v":699372,"ret":-0.003884},"2021-10-01":{"o":14702.25,"h":14818.0,"l":14537.0,"c":14761.75,"v":663413,"ret":0.005398},"2021-10-04":{"o":14785.0,"h":14835.0,"l":14367.75,"c":14462.25,"v":802849,"ret":-0.020289},"2021-10-05":{"o":14493.75,"h":14754.75,"l":14410.5,"c":14655.25,"v":574640,"ret":0.013345},"2021-10-06":{"o":14662.0,"h":14770.0,"l":14422.5,"c":14759.0,"v":756883,"ret":0.007079},"2021-10-07":{"o":14768.0,"h":15001.25,"l":14767.0,"c":14881.25,"v":492756,"ret":0.008283},"2021-10-08":{"o":14891.25,"h":14996.0,"l":14790.75,"c":14808.25,"v":550607,"ret":-0.004906},"2021-10-11":{"o":14810.25,"h":14897.25,"l":14677.0,"c":14700.5,"v":510490,"ret":-0.007276},"2021-10-12":{"o":14688.5,"h":14783.25,"l":14585.5,"c":14653.25,"v":599367,"ret":-0.003214},"2021-10-13":{"o":14594.0,"h":14795.75,"l":14591.0,"c":14764.25,"v":556059,"ret":0.007575},"2021-10-14":{"o":14770.25,"h":15071.5,"l":14767.5,"c":15037.25,"v":425055,"ret":0.018491},"2021-10-15":{"o":15063.75,"h":15145.0,"l":15020.75,"c":15134.5,"v":442893,"ret":0.006467},"2021-10-18":{"o":15145.0,"h":15297.25,"l":15038.75,"c":15290.5,"v":423424,"ret":0.010308},"2021-10-19":{"o":15289.75,"h":15428.25,"l":15269.0,"c":15398.5,"v":384792,"ret":0.007063},"2021-10-20":{"o":15411.0,"h":15446.5,"l":15319.0,"c":15377.5,"v":451735,"ret":-0.001364},"2021-10-21":{"o":15357.5,"h":15483.75,"l":15301.0,"c":15478.75,"v":436644,"ret":0.006584},"2021-10-22":{"o":15383.0,"h":15463.5,"l":15273.75,"c":15341.0,"v":545390,"ret":-0.008899},"2021-10-25":{"o":15324.25,"h":15546.0,"l":15295.75,"c":15495.75,"v":456009,"ret":0.010087},"2021-10-26":{"o":15543.0,"h":15701.0,"l":15503.0,"c":15545.0,"v":586099,"ret":0.003178},"2021-10-27":{"o":15532.25,"h":15717.5,"l":15507.25,"c":15587.25,"v":534474,"ret":0.002718},"2021-10-28":{"o":15595.0,"h":15777.0,"l":15591.75,"c":15764.75,"v":498210,"ret":0.011388},"2021-10-29":{"o":15679.75,"h":15864.75,"l":15595.5,"c":15838.5,"v":484693,"ret":0.004678},"2021-11-01":{"o":15885.25,"h":15914.75,"l":15768.5,"c":15894.25,"v":411507,"ret":0.00352},"2021-11-02":{"o":15891.0,"h":15980.25,"l":15849.5,"c":15961.25,"v":418550,"ret":0.004215},"2021-11-03":{"o":15957.75,"h":16145.75,"l":15935.25,"c":16129.75,"v":448135,"ret":0.010557},"2021-11-04":{"o":16129.5,"h":16376.0,"l":16129.5,"c":16330.75,"v":524361,"ret":0.012461},"2021-11-05":{"o":16335.0,"h":16448.5,"l":16292.0,"c":16351.75,"v":525824,"ret":0.001286},"2021-11-08":{"o":16293.0,"h":16394.0,"l":16256.0,"c":16327.75,"v":414326,"ret":-0.001468},"2021-11-09":{"o":16315.5,"h":16391.75,"l":16160.0,"c":16212.75,"v":560749,"ret":-0.007043},"2021-11-10":{"o":16201.25,"h":16243.0,"l":15896.5,"c":15980.5,"v":658266,"ret":-0.014325},"2021-11-11":{"o":15989.0,"h":16114.0,"l":15976.0,"c":16022.75,"v":434778,"ret":0.002644},"2021-11-12":{"o":16043.75,"h":16213.25,"l":16001.75,"c":16192.75,"v":422493,"ret":0.01061},"2021-11-15":{"o":16212.25,"h":16276.5,"l":16082.25,"c":16187.75,"v":483873,"ret":-0.000309},"2021-11-16":{"o":16198.5,"h":16323.75,"l":16142.0,"c":16300.75,"v":424380,"ret":0.006981},"2021-11-17":{"o":16297.75,"h":16396.5,"l":16270.0,"c":16311.5,"v":455992,"ret":0.000659},"2021-11-18":{"o":16322.5,"h":16508.0,"l":16303.5,"c":16481.25,"v":602241,"ret":0.010407},"2021-11-19":{"o":16503.25,"h":16628.5,"l":16490.25,"c":16575.0,"v":549031,"ret":0.005688},"2021-11-22":{"o":16600.25,"h":16767.5,"l":16364.5,"c":16382.0,"v":770668,"ret":-0.011644},"2021-11-23":{"o":16399.0,"h":16418.75,"l":16118.5,"c":16312.0,"v":901449,"ret":-0.004273},"2021-11-24":{"o":16300.25,"h":16368.5,"l":16102.0,"c":16366.0,"v":656267,"ret":0.00331},"2021-11-26":{"o":16360.0,"h":16436.0,"l":15988.0,"c":16051.0,"v":680753,"ret":-0.019247},"2021-11-29":{"o":16046.5,"h":16437.75,"l":16038.0,"c":16390.75,"v":597936,"ret":0.021167},"2021-11-30":{"o":16419.0,"h":16456.25,"l":16068.75,"c":16150.5,"v":854651,"ret":-0.014658},"2021-12-01":{"o":16238.75,"h":16427.5,"l":15825.25,"c":15869.75,"v":861888,"ret":-0.017383},"2021-12-02":{"o":15891.75,"h":16066.25,"l":15762.75,"c":15988.5,"v":853707,"ret":0.007483},"2021-12-03":{"o":16020.0,"h":16121.75,"l":15538.0,"c":15717.75,"v":898849,"ret":-0.016934},"2021-12-06":{"o":15716.25,"h":15897.25,"l":15559.25,"c":15842.75,"v":695515,"ret":0.007953},"2021-12-07":{"o":15848.75,"h":16374.5,"l":15824.5,"c":16318.0,"v":594627,"ret":0.029998},"2021-12-08":{"o":16360.5,"h":16436.75,"l":16251.5,"c":16392.25,"v":494849,"ret":0.00455},"2021-12-09":{"o":16380.5,"h":16420.0,"l":16120.25,"c":16148.75,"v":612576,"ret":-0.014855},"2021-12-10":{"o":16158.5,"h":16335.75,"l":16133.75,"c":16329.75,"v":395288,"ret":0.011208},"2021-12-13":{"o":16321.75,"h":16411.25,"l":16064.25,"c":16082.0,"v":286177,"ret":-0.015172},"2021-12-14":{"o":16085.0,"h":16133.75,"l":15738.5,"c":15924.75,"v":274758,"ret":-0.009778},"2021-12-15":{"o":15928.5,"h":16302.5,"l":15744.5,"c":16288.0,"v":161710,"ret":0.02281},"2021-12-16":{"o":16288.5,"h":16459.25,"l":15800.25,"c":15870.5,"v":143255,"ret":-0.025632},"2021-12-17":{"o":15873.0,"h":15902.0,"l":15668.0,"c":15717.32,"v":800579,"ret":-0.009652},"2021-12-20":{"o":15809.5,"h":15851.75,"l":15492.0,"c":15621.25,"v":676197,"ret":-0.006112},"2021-12-21":{"o":15674.25,"h":15987.25,"l":15605.0,"c":15980.0,"v":530228,"ret":0.022966},"2021-12-22":{"o":15979.0,"h":16183.0,"l":15881.5,"c":16169.75,"v":476670,"ret":0.011874},"2021-12-23":{"o":16180.0,"h":16356.0,"l":16145.25,"c":16299.0,"v":349182,"ret":0.007993},"2021-12-27":{"o":16304.25,"h":16580.75,"l":16304.25,"c":16560.0,"v":351308,"ret":0.016013},"2021-12-28":{"o":16565.75,"h":16659.5,"l":16452.25,"c":16488.0,"v":454633,"ret":-0.004348},"2021-12-29":{"o":16513.5,"h":16564.25,"l":16387.5,"c":16490.5,"v":354985,"ret":0.000152},"2021-12-30":{"o":16484.5,"h":16567.5,"l":16411.25,"c":16430.25,"v":304259,"ret":-0.003654},"2021-12-31":{"o":16431.0,"h":16464.0,"l":16313.75,"c":16320.75,"v":363720,"ret":-0.006665},"2022-01-03":{"o":16356.0,"h":16508.0,"l":16292.0,"c":16485.5,"v":513549,"ret":0.010095},"2022-01-04":{"o":16497.75,"h":16564.0,"l":16139.5,"c":16275.75,"v":669527,"ret":-0.012723},"2022-01-05":{"o":16265.0,"h":16269.0,"l":15752.75,"c":15766.5,"v":769790,"ret":-0.031289},"2022-01-06":{"o":15763.75,"h":15895.75,"l":15598.5,"c":15759.0,"v":802950,"ret":-0.000476},"2022-01-07":{"o":15801.75,"h":15852.75,"l":15510.0,"c":15581.0,"v":704406,"ret":-0.011295},"2022-01-10":{"o":15590.0,"h":15669.0,"l":15152.5,"c":15608.0,"v":888780,"ret":0.001733},"2022-01-11":{"o":15622.25,"h":15839.5,"l":15475.0,"c":15831.0,"v":709363,"ret":0.014288},"2022-01-12":{"o":15826.0,"h":16009.25,"l":15762.5,"c":15887.25,"v":671265,"ret":0.003553},"2022-01-13":{"o":15901.0,"h":15979.75,"l":15458.25,"c":15490.25,"v":763018,"ret":-0.024989},"2022-01-14":{"o":15505.0,"h":15621.0,"l":15312.5,"c":15595.75,"v":795897,"ret":0.006811},"2022-01-18":{"o":15616.75,"h":15653.25,"l":15170.75,"c":15206.0,"v":868066,"ret":-0.024991},"2022-01-19":{"o":15238.75,"h":15372.0,"l":15011.25,"c":15033.5,"v":776612,"ret":-0.011344},"2022-01-20":{"o":15042.25,"h":15340.25,"l":14646.75,"c":14841.0,"v":771410,"ret":-0.012805},"2022-01-21":{"o":14722.0,"h":14858.5,"l":14408.5,"c":14426.5,"v":1041723,"ret":-0.027929},"2022-01-24":{"o":14410.0,"h":14582.0,"l":13706.0,"c":14501.0,"v":1323080,"ret":0.005164},"2022-01-25":{"o":14495.0,"h":14499.0,"l":13890.0,"c":14140.75,"v":957800,"ret":-0.024843},"2022-01-26":{"o":13945.5,"h":14639.75,"l":13945.5,"c":14158.5,"v":908549,"ret":0.001255},"2022-01-27":{"o":14194.0,"h":14409.25,"l":13844.5,"c":13986.75,"v":866647,"ret":-0.012131},"2022-01-28":{"o":14167.75,"h":14442.0,"l":13831.0,"c":14433.0,"v":878243,"ret":0.031905},"2022-01-31":{"o":14454.0,"h":14914.75,"l":14353.25,"c":14905.0,"v":654278,"ret":0.032703},"2022-02-01":{"o":14868.75,"h":15137.0,"l":14729.25,"c":14994.75,"v":597305,"ret":0.006021},"2022-02-02":{"o":15129.0,"h":15260.0,"l":14825.0,"c":15114.5,"v":645396,"ret":0.007986},"2022-02-03":{"o":14852.5,"h":14870.0,"l":14456.25,"c":14492.25,"v":731581,"ret":-0.041169},"2022-02-04":{"o":14770.0,"h":14825.75,"l":14362.75,"c":14685.5,"v":763735,"ret":0.013335},"2022-02-07":{"o":14682.5,"h":14806.25,"l":14511.5,"c":14559.75,"v":562312,"ret":-0.008563},"2022-02-08":{"o":14600.0,"h":14776.0,"l":14467.5,"c":14734.5,"v":611858,"ret":0.012002},"2022-02-09":{"o":14746.25,"h":15068.0,"l":14741.0,"c":15038.25,"v":529886,"ret":0.020615},"2022-02-10":{"o":15062.25,"h":15062.25,"l":14622.0,"c":14701.0,"v":834478,"ret":-0.022426},"2022-02-11":{"o":14698.25,"h":14766.75,"l":14181.0,"c":14240.5,"v":835981,"ret":-0.031324},"2022-02-14":{"o":14250.0,"h":14394.0,"l":14031.0,"c":14253.0,"v":734224,"ret":0.000878},"2022-02-15":{"o":14257.0,"h":14614.75,"l":14223.25,"c":14609.5,"v":558472,"ret":0.025012},"2022-02-16":{"o":14588.0,"h":14668.5,"l":14381.0,"c":14600.0,"v":594304,"ret":-0.00065},"2022-02-17":{"o":14592.25,"h":14619.5,"l":14131.5,"c":14164.75,"v":631084,"ret":-0.029812},"2022-02-18":{"o":14156.25,"h":14299.0,"l":13906.25,"c":13996.0,"v":760914,"ret":-0.011913},"2022-02-22":{"o":13952.75,"h":14157.5,"l":13580.25,"c":13862.75,"v":1114720,"ret":-0.009521},"2022-02-23":{"o":13928.25,"h":14068.75,"l":13471.25,"c":13507.5,"v":713187,"ret":-0.025626},"2022-02-24":{"o":13484.25,"h":13983.25,"l":13025.75,"c":13966.5,"v":1122732,"ret":0.033981},"2022-02-25":{"o":13909.5,"h":14196.25,"l":13760.25,"c":14180.5,"v":784997,"ret":0.015322},"2022-02-28":{"o":13900.25,"h":14292.25,"l":13683.0,"c":14228.0,"v":753711,"ret":0.00335},"2022-03-01":{"o":14219.25,"h":14327.75,"l":13900.0,"c":14005.5,"v":645171,"ret":-0.015638},"2022-03-02":{"o":14026.25,"h":14290.0,"l":13911.5,"c":14239.25,"v":629022,"ret":0.01669},"2022-03-03":{"o":14196.5,"h":14391.0,"l":13955.0,"c":14030.5,"v":596925,"ret":-0.01466},"2022-03-04":{"o":14069.25,"h":14086.5,"l":13733.75,"c":13839.75,"v":725774,"ret":-0.013595},"2022-03-07":{"o":13763.5,"h":13879.75,"l":13265.0,"c":13320.75,"v":717846,"ret":-0.037501},"2022-03-08":{"o":13283.0,"h":13666.0,"l":13103.25,"c":13267.0,"v":841407,"ret":-0.004035},"2022-03-09":{"o":13192.25,"h":13821.75,"l":13189.75,"c":13734.75,"v":650826,"ret":0.035257},"2022-03-10":{"o":13778.0,"h":13778.0,"l":13396.25,"c":13586.0,"v":611077,"ret":-0.01083},"2022-03-11":{"o":13577.25,"h":13860.75,"l":13281.75,"c":13292.0,"v":439890,"ret":-0.02164},"2022-03-14":{"o":13362.0,"h":13447.5,"l":13015.5,"c":13045.5,"v":402608,"ret":-0.018545},"2022-03-15":{"o":13082.0,"h":13489.0,"l":12944.0,"c":13451.75,"v":284955,"ret":0.031141},"2022-03-16":{"o":13451.75,"h":14029.25,"l":13420.5,"c":13953.0,"v":274498,"ret":0.037263},"2022-03-17":{"o":13999.0,"h":14136.25,"l":13822.75,"c":14111.75,"v":125160,"ret":0.011377},"2022-03-18":{"o":14060.0,"h":14095.31,"l":13970.5,"c":14095.31,"v":558776,"ret":-0.001165},"2022-03-21":{"o":14404.0,"h":14466.75,"l":14183.75,"c":14370.5,"v":589629,"ret":0.019524},"2022-03-22":{"o":14390.0,"h":14690.75,"l":14293.5,"c":14654.0,"v":509918,"ret":0.019728},"2022-03-23":{"o":14654.0,"h":14682.25,"l":14441.0,"c":14447.0,"v":555130,"ret":-0.014126},"2022-03-24":{"o":14462.75,"h":14769.75,"l":14433.5,"c":14763.75,"v":512267,"ret":0.021925},"2022-03-25":{"o":14765.0,"h":14840.5,"l":14572.5,"c":14755.75,"v":553931,"ret":-0.000542},"2022-03-28":{"o":14756.0,"h":14997.0,"l":14658.75,"c":14985.25,"v":532125,"ret":0.015553},"2022-03-29":{"o":14981.0,"h":15268.75,"l":14956.5,"c":15237.75,"v":552951,"ret":0.01685},"2022-03-30":{"o":15222.0,"h":15262.25,"l":15012.25,"c":15071.5,"v":513516,"ret":-0.01091},"2022-03-31":{"o":15100.5,"h":15180.75,"l":14855.5,"c":14868.75,"v":560785,"ret":-0.013453},"2022-04-01":{"o":14918.75,"h":14960.0,"l":14725.0,"c":14863.75,"v":539029,"ret":-0.000336},"2022-04-04":{"o":14846.0,"h":15174.5,"l":14801.0,"c":15164.25,"v":460171,"ret":0.020217},"2022-04-05":{"o":15155.5,"h":15198.0,"l":14780.25,"c":14828.0,"v":563198,"ret":-0.022174},"2022-04-06":{"o":14861.0,"h":14861.25,"l":14394.75,"c":14505.25,"v":783213,"ret":-0.021766},"2022-04-07":{"o":14496.25,"h":14633.75,"l":14317.0,"c":14536.0,"v":645737,"ret":0.00212},"2022-04-08":{"o":14536.25,"h":14642.25,"l":14310.5,"c":14327.0,"v":640156,"ret":-0.014378},"2022-04-11":{"o":14345.0,"h":14382.0,"l":13984.75,"c":14000.0,"v":577477,"ret":-0.022824},"2022-04-12":{"o":14006.25,"h":14284.25,"l":13881.25,"c":13945.0,"v":704351,"ret":-0.003929},"2022-04-13":{"o":13952.75,"h":14266.5,"l":13921.0,"c":14221.5,"v":530164,"ret":0.019828},"2022-04-14":{"o":14211.5,"h":14296.25,"l":13876.5,"c":13893.75,"v":548400,"ret":-0.023046},"2022-04-18":{"o":13892.0,"h":14002.5,"l":13729.5,"c":13907.75,"v":492103,"ret":0.001008},"2022-04-19":{"o":13962.75,"h":14242.0,"l":13828.0,"c":14217.25,"v":556357,"ret":0.022254},"2022-04-20":{"o":14104.75,"h":14298.0,"l":13956.5,"c":14004.75,"v":604344,"ret":-0.014947},"2022-04-21":{"o":14070.0,"h":14283.0,"l":13667.5,"c":13728.25,"v":685788,"ret":-0.019743},"2022-04-22":{"o":13720.0,"h":13781.0,"l":13297.0,"c":13353.5,"v":732255,"ret":-0.027298},"2022-04-25":{"o":13334.25,"h":13549.75,"l":13184.0,"c":13535.75,"v":749649,"ret":0.013648},"2022-04-26":{"o":13523.5,"h":13583.75,"l":12801.5,"c":13016.0,"v":755330,"ret":-0.038398},"2022-04-27":{"o":12881.0,"h":13255.25,"l":12878.25,"c":13009.0,"v":817196,"ret":-0.000538},"2022-04-28":{"o":13191.0,"h":13542.0,"l":13033.0,"c":13454.75,"v":756360,"ret":0.034265},"2022-04-29":{"o":13219.5,"h":13433.0,"l":12831.75,"c":12852.0,"v":723386,"ret":-0.044798},"2022-05-02":{"o":12892.25,"h":13084.5,"l":12709.75,"c":13073.0,"v":763818,"ret":0.017196},"2022-05-03":{"o":13051.75,"h":13183.75,"l":12968.5,"c":13087.5,"v":662216,"ret":0.001109},"2022-05-04":{"o":13121.0,"h":13555.25,"l":12883.0,"c":13531.25,"v":703191,"ret":0.033906},"2022-05-05":{"o":13500.25,"h":13548.0,"l":12705.25,"c":12858.0,"v":877795,"ret":-0.049755},"2022-05-06":{"o":12883.25,"h":12928.75,"l":12519.0,"c":12695.75,"v":852234,"ret":-0.012619},"2022-05-09":{"o":12605.0,"h":12637.25,"l":12135.25,"c":12193.75,"v":816033,"ret":-0.039541},"2022-05-10":{"o":12206.0,"h":12547.0,"l":12102.25,"c":12349.0,"v":853859,"ret":0.012732},"2022-05-11":{"o":12328.75,"h":12553.25,"l":11938.5,"c":11969.75,"v":865890,"ret":-0.030711},"2022-05-12":{"o":12004.5,"h":12132.75,"l":11689.0,"c":11947.25,"v":878238,"ret":-0.00188},"2022-05-13":{"o":11891.5,"h":12432.0,"l":11891.5,"c":12382.75,"v":663517,"ret":0.036452},"2022-05-16":{"o":12409.0,"h":12498.75,"l":12190.25,"c":12244.75,"v":623715,"ret":-0.011145},"2022-05-17":{"o":12235.5,"h":12578.0,"l":12234.0,"c":12560.25,"v":653222,"ret":0.025766},"2022-05-18":{"o":12572.0,"h":12594.0,"l":11862.75,"c":11935.5,"v":735386,"ret":-0.04974},"2022-05-19":{"o":11907.0,"h":12076.75,"l":11704.0,"c":11878.25,"v":827741,"ret":-0.004797},"2022-05-20":{"o":11898.0,"h":12096.75,"l":11491.25,"c":11840.75,"v":806781,"ret":-0.003157},"2022-05-23":{"o":11866.0,"h":12075.5,"l":11783.75,"c":12035.25,"v":660213,"ret":0.016426},"2022-05-24":{"o":11915.0,"h":11918.0,"l":11576.25,"c":11771.0,"v":717429,"ret":-0.021956},"2022-05-25":{"o":11808.0,"h":12036.0,"l":11672.0,"c":11942.25,"v":671096,"ret":0.014548},"2022-05-26":{"o":11887.5,"h":12343.0,"l":11848.25,"c":12279.25,"v":611884,"ret":0.028219},"2022-05-27":{"o":12250.0,"h":12720.25,"l":12222.0,"c":12677.75,"v":615992,"ret":0.032453},"2022-05-31":{"o":12705.25,"h":12883.0,"l":12480.0,"c":12646.5,"v":832388,"ret":-0.002465},"2022-06-01":{"o":12662.5,"h":12823.5,"l":12454.75,"c":12551.0,"v":682211,"ret":-0.007551},"2022-06-02":{"o":12549.75,"h":12903.75,"l":12442.5,"c":12893.75,"v":620008,"ret":0.027309},"2022-06-03":{"o":12896.0,"h":12945.25,"l":12503.0,"c":12551.0,"v":652955,"ret":-0.026583},"2022-06-06":{"o":12549.75,"h":12810.0,"l":12527.0,"c":12605.0,"v":536936,"ret":0.004302},"2022-06-07":{"o":12605.25,"h":12740.25,"l":12412.5,"c":12711.5,"v":577970,"ret":0.008449},"2022-06-08":{"o":12680.5,"h":12783.0,"l":12579.25,"c":12615.75,"v":583652,"ret":-0.007533},"2022-06-09":{"o":12625.0,"h":12726.0,"l":12255.25,"c":12275.0,"v":690155,"ret":-0.02701},"2022-06-10":{"o":12301.5,"h":12338.75,"l":11823.0,"c":11840.0,"v":617395,"ret":-0.035438},"2022-06-13":{"o":11768.0,"h":11772.5,"l":11254.5,"c":11296.5,"v":530220,"ret":-0.045904},"2022-06-14":{"o":11334.25,"h":11505.5,"l":11205.0,"c":11314.25,"v":378134,"ret":0.001571},"2022-06-15":{"o":11329.75,"h":11759.25,"l":11327.75,"c":11593.75,"v":265812,"ret":0.024703},"2022-06-16":{"o":11608.5,"h":11737.75,"l":11036.75,"c":11124.75,"v":146538,"ret":-0.040453},"2022-06-17":{"o":11178.5,"h":11290.0,"l":11130.25,"c":11130.39,"v":731831,"ret":0.000507},"2022-06-21":{"o":11332.5,"h":11678.25,"l":11273.75,"c":11577.25,"v":657209,"ret":0.040148},"2022-06-22":{"o":11579.75,"h":11745.75,"l":11320.5,"c":11565.75,"v":638960,"ret":-0.000993},"2022-06-23":{"o":11542.75,"h":11766.75,"l":11460.5,"c":11737.5,"v":630125,"ret":0.01485},"2022-06-24":{"o":11687.75,"h":12148.5,"l":11684.75,"c":12140.5,"v":563303,"ret":0.034334},"2022-06-27":{"o":12137.5,"h":12262.0,"l":11994.25,"c":12040.5,"v":565803,"ret":-0.008237},"2022-06-28":{"o":12076.25,"h":12174.25,"l":11661.5,"c":11674.25,"v":634694,"ret":-0.030418},"2022-06-29":{"o":11680.5,"h":11749.0,"l":11564.5,"c":11691.0,"v":590173,"ret":0.001435},"2022-06-30":{"o":11691.5,"h":11696.75,"l":11351.0,"c":11529.5,"v":738071,"ret":-0.013814},"2022-07-01":{"o":11507.5,"h":11629.75,"l":11381.75,"c":11611.25,"v":605401,"ret":0.007091},"2022-07-05":{"o":11606.0,"h":11815.75,"l":11389.25,"c":11808.5,"v":790937,"ret":0.016988},"2022-07-06":{"o":11820.25,"h":11974.25,"l":11727.75,"c":11880.25,"v":649912,"ret":0.006076},"2022-07-07":{"o":11901.25,"h":12168.5,"l":11836.5,"c":12138.5,"v":550463,"ret":0.021738},"2022-07-08":{"o":12115.0,"h":12211.0,"l":11952.5,"c":12152.0,"v":640445,"ret":0.001112},"2022-07-11":{"o":12149.75,"h":12149.75,"l":11853.0,"c":11884.25,"v":578336,"ret":-0.022033},"2022-07-12":{"o":11900.5,"h":12025.5,"l":11712.0,"c":11779.0,"v":607949,"ret":-0.008856},"2022-07-13":{"o":11780.0,"h":11970.0,"l":11479.25,"c":11762.25,"v":732270,"ret":-0.001422},"2022-07-14":{"o":11729.5,"h":11835.0,"l":11511.25,"c":11797.5,"v":654560,"ret":0.002997},"2022-07-15":{"o":11810.5,"h":12021.5,"l":11740.25,"c":12007.5,"v":560980,"ret":0.0178},"2022-07-18":{"o":12043.5,"h":12186.5,"l":11857.0,"c":11907.0,"v":553676,"ret":-0.00837},"2022-07-19":{"o":11909.5,"h":12328.5,"l":11889.5,"c":12274.0,"v":585591,"ret":0.030822},"2022-07-20":{"o":12330.5,"h":12517.5,"l":12235.75,"c":12465.25,"v":643607,"ret":0.015582},"2022-07-21":{"o":12440.0,"h":12655.25,"l":12373.5,"c":12640.0,"v":605066,"ret":0.014019},"2022-07-22":{"o":12559.25,"h":12698.5,"l":12343.75,"c":12423.5,"v":634548,"ret":-0.017128},"2022-07-25":{"o":12444.5,"h":12498.5,"l":12266.5,"c":12354.5,"v":491612,"ret":-0.005554},"2022-07-26":{"o":12311.25,"h":12334.0,"l":12072.0,"c":12112.5,"v":536287,"ret":-0.019588},"2022-07-27":{"o":12192.0,"h":12690.0,"l":12191.75,"c":12619.0,"v":634889,"ret":0.041816},"2022-07-28":{"o":12580.0,"h":12948.0,"l":12449.0,"c":12737.5,"v":645261,"ret":0.009391},"2022-07-29":{"o":12920.25,"h":13012.0,"l":12744.25,"c":12971.5,"v":592416,"ret":0.018371},"2022-08-01":{"o":12981.0,"h":13108.75,"l":12851.75,"c":12962.5,"v":622511,"ret":-0.000694},"2022-08-02":{"o":12974.25,"h":13097.0,"l":12814.75,"c":12924.5,"v":674564,"ret":-0.002932},"2022-08-03":{"o":12921.0,"h":13310.25,"l":12867.25,"c":13271.5,"v":690056,"ret":0.026848},"2022-08-04":{"o":13247.0,"h":13356.0,"l":13184.75,"c":13327.0,"v":542680,"ret":0.004182},"2022-08-05":{"o":13327.25,"h":13384.5,"l":13085.0,"c":13228.75,"v":687792,"ret":-0.007372},"2022-08-08":{"o":13227.75,"h":13419.25,"l":13120.5,"c":13183.25,"v":597182,"ret":-0.003439},"2022-08-09":{"o":13206.25,"h":13233.75,"l":12963.25,"c":13031.5,"v":553704,"ret":-0.011511},"2022-08-10":{"o":13050.0,"h":13408.0,"l":12982.0,"c":13392.0,"v":602069,"ret":0.027664},"2022-08-11":{"o":13380.5,"h":13575.0,"l":13285.0,"c":13311.25,"v":614816,"ret":-0.00603},"2022-08-12":{"o":13344.25,"h":13583.25,"l":13312.0,"c":13577.75,"v":500647,"ret":0.020021},"2022-08-15":{"o":13571.5,"h":13706.0,"l":13495.25,"c":13681.25,"v":463768,"ret":0.007623},"2022-08-16":{"o":13674.75,"h":13740.75,"l":13522.75,"c":13658.25,"v":555979,"ret":-0.001681},"2022-08-17":{"o":13658.0,"h":13672.0,"l":13406.25,"c":13493.25,"v":610667,"ret":-0.012081},"2022-08-18":{"o":13503.0,"h":13575.5,"l":13410.75,"c":13523.25,"v":530513,"ret":0.002223},"2022-08-19":{"o":13534.25,"h":13534.5,"l":13228.75,"c":13268.5,"v":618758,"ret":-0.018838},"2022-08-22":{"o":13226.5,"h":13226.5,"l":12874.5,"c":12909.75,"v":599946,"ret":-0.027038},"2022-08-23":{"o":12933.75,"h":13018.5,"l":12823.5,"c":12896.5,"v":570278,"ret":-0.001026},"2022-08-24":{"o":12892.0,"h":13011.25,"l":12825.75,"c":12929.75,"v":503227,"ret":0.002578},"2022-08-25":{"o":12944.0,"h":13161.5,"l":12925.0,"c":13156.0,"v":543666,"ret":0.017498},"2022-08-26":{"o":13153.75,"h":13220.0,"l":12557.5,"c":12620.5,"v":753862,"ret":-0.040704},"2022-08-29":{"o":12485.0,"h":12610.25,"l":12401.5,"c":12492.75,"v":693093,"ret":-0.010122},"2022-08-30":{"o":12503.5,"h":12658.25,"l":12247.5,"c":12358.75,"v":797462,"ret":-0.010726},"2022-08-31":{"o":12366.0,"h":12513.0,"l":12276.25,"c":12285.25,"v":672068,"ret":-0.005947},"2022-09-01":{"o":12284.75,"h":12299.5,"l":12017.75,"c":12292.25,"v":820606,"ret":0.00057},"2022-09-02":{"o":12297.75,"h":12461.5,"l":12040.25,"c":12104.25,"v":835870,"ret":-0.015294},"2022-09-06":{"o":12110.5,"h":12244.5,"l":11930.0,"c":12019.0,"v":895450,"ret":-0.007043},"2022-09-07":{"o":12019.75,"h":12306.25,"l":11921.5,"c":12263.25,"v":677159,"ret":0.020322},"2022-09-08":{"o":12267.75,"h":12379.5,"l":12115.75,"c":12321.75,"v":737024,"ret":0.00477},"2022-09-09":{"o":12345.25,"h":12613.75,"l":12329.5,"c":12592.5,"v":535984,"ret":0.021973},"2022-09-12":{"o":12626.0,"h":12773.75,"l":12573.25,"c":12740.75,"v":444255,"ret":0.011773},"2022-09-13":{"o":12769.5,"h":12889.0,"l":12003.25,"c":12036.5,"v":463841,"ret":-0.055275},"2022-09-14":{"o":12050.25,"h":12173.0,"l":12001.75,"c":12142.0,"v":270232,"ret":0.008765},"2022-09-15":{"o":12159.0,"h":12187.75,"l":11866.5,"c":11934.75,"v":169928,"ret":-0.017069},"2022-09-16":{"o":11880.0,"h":11880.0,"l":11750.5,"c":11814.58,"v":754923,"ret":-0.010069},"2022-09-19":{"o":11920.0,"h":12066.25,"l":11792.25,"c":12024.0,"v":632663,"ret":0.017726},"2022-09-20":{"o":12045.75,"h":12092.5,"l":11828.25,"c":11922.25,"v":704882,"ret":-0.008462},"2022-09-21":{"o":11946.0,"h":12140.5,"l":11647.5,"c":11710.0,"v":822965,"ret":-0.017803},"2022-09-22":{"o":11661.25,"h":11796.0,"l":11510.0,"c":11565.5,"v":786180,"ret":-0.01234},"2022-09-23":{"o":11583.75,"h":11600.25,"l":11229.0,"c":11376.75,"v":799378,"ret":-0.01632},"2022-09-26":{"o":11362.5,"h":11537.75,"l":11256.5,"c":11316.25,"v":809853,"ret":-0.005318},"2022-09-27":{"o":11315.5,"h":11568.25,"l":11233.5,"c":11333.75,"v":841073,"ret":0.001546},"2022-09-28":{"o":11361.0,"h":11613.5,"l":11141.5,"c":11555.75,"v":897742,"ret":0.019588},"2022-09-29":{"o":11544.0,"h":11567.25,"l":11091.5,"c":11228.25,"v":891823,"ret":-0.028341},"2022-09-30":{"o":11220.0,"h":11357.25,"l":11024.25,"c":11035.5,"v":878168,"ret":-0.017167},"2022-10-03":{"o":11030.0,"h":11358.25,"l":10890.75,"c":11285.75,"v":757581,"ret":0.022677},"2022-10-04":{"o":11314.5,"h":11675.0,"l":11281.5,"c":11640.75,"v":772885,"ret":0.031456},"2022-10-05":{"o":11630.25,"h":11711.0,"l":11366.5,"c":11623.75,"v":700889,"ret":-0.00146},"2022-10-06":{"o":11628.0,"h":11729.75,"l":11505.25,"c":11541.75,"v":773914,"ret":-0.007055},"2022-10-07":{"o":11494.5,"h":11564.5,"l":11043.25,"c":11101.5,"v":759141,"ret":-0.038144},"2022-10-10":{"o":11067.75,"h":11136.5,"l":10876.75,"c":10984.5,"v":757732,"ret":-0.010539},"2022-10-11":{"o":10987.0,"h":11039.5,"l":10767.25,"c":10845.0,"v":833906,"ret":-0.0127},"2022-10-12":{"o":10875.0,"h":10976.75,"l":10805.5,"c":10840.5,"v":731214,"ret":-0.000415},"2022-10-13":{"o":10859.0,"h":11142.75,"l":10484.75,"c":11083.75,"v":1050244,"ret":0.022439},"2022-10-14":{"o":11064.75,"h":11253.5,"l":10726.75,"c":10744.0,"v":843525,"ret":-0.030653},"2022-10-17":{"o":10720.0,"h":11146.25,"l":10713.0,"c":11110.25,"v":638720,"ret":0.034089},"2022-10-18":{"o":11161.25,"h":11431.75,"l":11081.5,"c":11198.75,"v":832215,"ret":0.007966},"2022-10-19":{"o":11320.25,"h":11382.75,"l":11049.0,"c":11153.25,"v":733776,"ret":-0.004063},"2022-10-20":{"o":11134.0,"h":11328.75,"l":11008.0,"c":11090.75,"v":739672,"ret":-0.005604},"2022-10-21":{"o":11061.25,"h":11386.25,"l":10935.5,"c":11358.5,"v":840952,"ret":0.024142},"2022-10-24":{"o":11393.75,"h":11530.25,"l":11207.75,"c":11478.75,"v":715016,"ret":0.010587},"2022-10-25":{"o":11453.75,"h":11734.0,"l":11430.25,"c":11713.5,"v":660210,"ret":0.020451},"2022-10-26":{"o":11510.0,"h":11703.5,"l":11415.0,"c":11446.0,"v":784638,"ret":-0.022837},"2022-10-27":{"o":11417.75,"h":11537.5,"l":10921.5,"c":11235.25,"v":769071,"ret":-0.018413},"2022-10-28":{"o":11122.75,"h":11626.0,"l":11062.0,"c":11587.0,"v":728261,"ret":0.031308},"2022-10-31":{"o":11592.5,"h":11595.0,"l":11367.25,"c":11447.25,"v":607680,"ret":-0.012061},"2022-11-01":{"o":11455.0,"h":11619.0,"l":11288.75,"c":11332.0,"v":605362,"ret":-0.010068},"2022-11-02":{"o":11320.25,"h":11460.0,"l":10909.0,"c":10944.5,"v":770983,"ret":-0.034195},"2022-11-03":{"o":10938.0,"h":10996.0,"l":10708.0,"c":10728.0,"v":705050,"ret":-0.019782},"2022-11-04":{"o":10712.0,"h":10974.25,"l":10636.0,"c":10890.25,"v":881129,"ret":0.015124},"2022-11-07":{"o":10786.5,"h":11038.5,"l":10751.0,"c":11014.25,"v":554692,"ret":0.011386},"2022-11-08":{"o":11016.0,"h":11231.25,"l":10928.75,"c":11094.25,"v":728868,"ret":0.007263},"2022-11-09":{"o":11089.25,"h":11164.25,"l":10822.25,"c":10830.75,"v":669071,"ret":-0.023751},"2022-11-10":{"o":10841.0,"h":11677.0,"l":10808.0,"c":11632.25,"v":862147,"ret":0.074002},"2022-11-11":{"o":11669.75,"h":11876.75,"l":11569.25,"c":11848.0,"v":682257,"ret":0.018548},"2022-11-14":{"o":11791.0,"h":11898.5,"l":11702.0,"c":11734.75,"v":576678,"ret":-0.009559},"2022-11-15":{"o":11768.5,"h":12118.75,"l":11761.75,"c":11904.25,"v":771822,"ret":0.014444},"2022-11-16":{"o":11882.0,"h":11963.0,"l":11706.5,"c":11739.5,"v":577864,"ret":-0.01384},"2022-11-17":{"o":11777.75,"h":11827.5,"l":11528.25,"c":11710.5,"v":658469,"ret":-0.00247},"2022-11-18":{"o":11747.75,"h":11843.0,"l":11607.0,"c":11708.0,"v":585873,"ret":-0.000213},"2022-11-21":{"o":11723.0,"h":11756.0,"l":11553.0,"c":11588.0,"v":477970,"ret":-0.010249},"2022-11-22":{"o":11588.0,"h":11759.25,"l":11526.5,"c":11754.5,"v":531087,"ret":0.014368},"2022-11-23":{"o":11741.5,"h":11892.75,"l":11720.0,"c":11862.75,"v":474645,"ret":0.009209},"2022-11-25":{"o":11878.0,"h":11933.0,"l":11766.25,"c":11782.75,"v":252366,"ret":-0.006744},"2022-11-28":{"o":11731.25,"h":11788.5,"l":11575.25,"c":11616.25,"v":506250,"ret":-0.014131},"2022-11-29":{"o":11625.0,"h":11704.5,"l":11465.0,"c":11524.75,"v":555859,"ret":-0.007877},"2022-11-30":{"o":11520.0,"h":12078.5,"l":11497.75,"c":12042.25,"v":769082,"ret":0.044903},"2022-12-01":{"o":12079.25,"h":12145.0,"l":11943.25,"c":12062.75,"v":629297,"ret":0.001702},"2022-12-02":{"o":12039.75,"h":12067.75,"l":11740.5,"c":12010.25,"v":588295,"ret":-0.004352},"2022-12-05":{"o":12000.5,"h":12015.75,"l":11745.5,"c":11805.75,"v":537924,"ret":-0.017027},"2022-12-06":{"o":11812.0,"h":11846.25,"l":11502.0,"c":11566.0,"v":657271,"ret":-0.020308},"2022-12-07":{"o":11566.0,"h":11596.25,"l":11422.5,"c":11509.5,"v":634691,"ret":-0.004885},"2022-12-08":{"o":11500.0,"h":11685.75,"l":11433.0,"c":11645.5,"v":600826,"ret":0.011816},"2022-12-09":{"o":11641.5,"h":11748.0,"l":11517.0,"c":11569.75,"v":504052,"ret":-0.006505},"2022-12-12":{"o":11553.0,"h":11716.0,"l":11522.75,"c":11711.75,"v":354886,"ret":0.012273},"2022-12-13":{"o":11691.25,"h":12229.5,"l":11680.5,"c":11839.75,"v":407612,"ret":0.010929},"2022-12-14":{"o":11839.0,"h":11948.5,"l":11613.75,"c":11750.75,"v":197122,"ret":-0.007517},"2022-12-15":{"o":11758.75,"h":11779.5,"l":11298.25,"c":11347.25,"v":182838,"ret":-0.034338},"2022-12-16":{"o":11340.25,"h":11381.25,"l":11206.5,"c":11327.04,"v":665526,"ret":-0.001781},"2022-12-19":{"o":11328.75,"h":11411.0,"l":11131.75,"c":11193.25,"v":562529,"ret":-0.011812},"2022-12-20":{"o":11182.5,"h":11247.0,"l":11043.5,"c":11175.75,"v":625090,"ret":-0.001563},"2022-12-21":{"o":11206.5,"h":11389.75,"l":11181.0,"c":11334.5,"v":631322,"ret":0.014205},"2022-12-22":{"o":11357.0,"h":11384.75,"l":10870.5,"c":11054.25,"v":714500,"ret":-0.024725},"2022-12-23":{"o":11061.0,"h":11143.0,"l":10916.25,"c":11075.25,"v":534525,"ret":0.0019},"2022-12-27":{"o":11104.0,"h":11183.75,"l":10896.0,"c":10915.5,"v":499799,"ret":-0.014424},"2022-12-28":{"o":10915.75,"h":10996.5,"l":10758.75,"c":10772.75,"v":635572,"ret":-0.013078},"2022-12-29":{"o":10785.75,"h":11071.5,"l":10777.5,"c":11032.75,"v":470004,"ret":0.024135},"2022-12-30":{"o":11033.5,"h":11051.5,"l":10855.5,"c":11022.25,"v":462484,"ret":-0.000952},"2023-01-03":{"o":11122.5,"h":11182.0,"l":10844.75,"c":10945.5,"v":657681,"ret":-0.006963},"2023-01-04":{"o":10941.25,"h":11068.5,"l":10863.5,"c":10999.25,"v":758003,"ret":0.004911},"2023-01-05":{"o":10988.5,"h":11046.75,"l":10805.0,"c":10820.25,"v":694452,"ret":-0.016274},"2023-01-06":{"o":10838.75,"h":11165.75,"l":10751.0,"c":11113.5,"v":736332,"ret":0.027102},"2023-01-09":{"o":11126.5,"h":11385.5,"l":11120.25,"c":11185.5,"v":646318,"ret":0.006479},"2023-01-10":{"o":11184.75,"h":11288.75,"l":11094.0,"c":11282.0,"v":559281,"ret":0.008627},"2023-01-11":{"o":11282.5,"h":11479.5,"l":11239.75,"c":11476.5,"v":500153,"ret":0.01724},"2023-01-12":{"o":11474.5,"h":11579.75,"l":11291.0,"c":11534.25,"v":754571,"ret":0.005032},"2023-01-13":{"o":11528.5,"h":11619.5,"l":11389.0,"c":11608.0,"v":482002,"ret":0.006394},"2023-01-17":{"o":11613.5,"h":11685.0,"l":11510.25,"c":11624.5,"v":576141,"ret":0.001421},"2023-01-18":{"o":11619.75,"h":11759.5,"l":11468.0,"c":11475.75,"v":619614,"ret":-0.012796},"2023-01-19":{"o":11470.5,"h":11487.0,"l":11308.5,"c":11356.5,"v":594769,"ret":-0.010391},"2023-01-20":{"o":11401.0,"h":11686.75,"l":11365.25,"c":11677.0,"v":577769,"ret":0.028222},"2023-01-23":{"o":11676.75,"h":11983.0,"l":11650.5,"c":11934.0,"v":593978,"ret":0.022009},"2023-01-24":{"o":11933.0,"h":12010.5,"l":11835.75,"c":11909.5,"v":511370,"ret":-0.002053},"2023-01-25":{"o":11970.5,"h":11976.5,"l":11604.5,"c":11873.25,"v":633473,"ret":-0.003044},"2023-01-26":{"o":11874.75,"h":12113.0,"l":11867.25,"c":12106.75,"v":621434,"ret":0.019666},"2023-01-27":{"o":12049.0,"h":12308.5,"l":12016.0,"c":12222.25,"v":588072,"ret":0.00954},"2023-01-30":{"o":12212.5,"h":12252.0,"l":11960.0,"c":11968.0,"v":634667,"ret":-0.020802},"2023-01-31":{"o":11984.0,"h":12156.0,"l":11871.0,"c":12152.0,"v":585202,"ret":0.015374},"2023-02-01":{"o":12116.0,"h":12524.5,"l":12055.25,"c":12414.25,"v":668515,"ret":0.021581},"2023-02-02":{"o":12520.0,"h":12949.75,"l":12501.75,"c":12846.75,"v":817822,"ret":0.034839},"2023-02-03":{"o":12748.25,"h":12878.0,"l":12551.25,"c":12624.0,"v":824209,"ret":-0.017339},"2023-02-06":{"o":12572.0,"h":12608.5,"l":12455.75,"c":12515.5,"v":535147,"ret":-0.008595},"2023-02-07":{"o":12513.0,"h":12818.5,"l":12459.25,"c":12776.75,"v":744996,"ret":0.020874},"2023-02-08":{"o":12747.0,"h":12808.5,"l":12512.75,"c":12545.25,"v":590355,"ret":-0.018119},"2023-02-09":{"o":12555.0,"h":12728.5,"l":12366.5,"c":12425.5,"v":612404,"ret":-0.009545},"2023-02-10":{"o":12448.75,"h":12451.5,"l":12243.25,"c":12346.25,"v":600244,"ret":-0.006378},"2023-02-13":{"o":12357.5,"h":12567.0,"l":12265.25,"c":12540.5,"v":467840,"ret":0.015734},"2023-02-14":{"o":12547.25,"h":12687.0,"l":12390.5,"c":12631.0,"v":719204,"ret":0.007217},"2023-02-15":{"o":12620.75,"h":12756.5,"l":12524.25,"c":12730.0,"v":568579,"ret":0.007838},"2023-02-16":{"o":12740.0,"h":12792.75,"l":12455.25,"c":12482.5,"v":682325,"ret":-0.019442},"2023-02-17":{"o":12462.5,"h":12466.25,"l":12265.75,"c":12390.0,"v":629355,"ret":-0.00741},"2023-02-21":{"o":12380.0,"h":12417.75,"l":12090.25,"c":12096.75,"v":609494,"ret":-0.023668},"2023-02-22":{"o":12108.0,"h":12190.5,"l":12034.0,"c":12097.5,"v":640711,"ret":6.2e-05},"2023-02-23":{"o":12176.25,"h":12261.0,"l":12028.5,"c":12207.5,"v":640962,"ret":0.009093},"2023-02-24":{"o":12190.0,"h":12214.5,"l":11923.0,"c":11997.0,"v":643618,"ret":-0.017243},"2023-02-27":{"o":12003.0,"h":12189.5,"l":11990.0,"c":12083.25,"v":578952,"ret":0.007189},"2023-02-28":{"o":12093.5,"h":12172.75,"l":12025.75,"c":12072.25,"v":646026,"ret":-0.00091},"2023-03-01":{"o":12041.25,"h":12141.75,"l":11924.75,"c":11961.75,"v":759645,"ret":-0.009153},"2023-03-02":{"o":11967.0,"h":12096.25,"l":11832.5,"c":12062.0,"v":752009,"ret":0.008381},"2023-03-03":{"o":12049.0,"h":12329.0,"l":12012.0,"c":12311.25,"v":675472,"ret":0.020664},"2023-03-06":{"o":12306.25,"h":12486.25,"l":12276.25,"c":12323.5,"v":612506,"ret":0.000995},"2023-03-07":{"o":12320.25,"h":12381.25,"l":12142.25,"c":12169.0,"v":685006,"ret":-0.012537},"2023-03-08":{"o":12170.0,"h":12254.5,"l":12108.25,"c":12228.25,"v":633419,"ret":0.004869},"2023-03-09":{"o":12231.0,"h":12353.5,"l":11977.5,"c":12007.25,"v":816838,"ret":-0.018073},"2023-03-10":{"o":12005.0,"h":12109.0,"l":11795.0,"c":11840.25,"v":871209,"ret":-0.013908},"2023-03-13":{"o":11894.75,"h":12095.75,"l":11674.25,"c":11931.75,"v":694438,"ret":0.007728},"2023-03-14":{"o":11960.0,"h":12223.0,"l":11921.75,"c":12207.0,"v":364395,"ret":0.023069},"2023-03-15":{"o":12200.75,"h":12280.0,"l":11972.0,"c":12247.75,"v":261341,"ret":0.003338},"2023-03-16":{"o":12264.5,"h":12600.5,"l":12189.25,"c":12583.0,"v":181754,"ret":0.027372},"2023-03-17":{"o":12575.75,"h":12636.5,"l":12531.75,"c":12594.65,"v":734052,"ret":0.000926},"2023-03-20":{"o":12690.0,"h":12750.0,"l":12525.25,"c":12688.5,"v":694471,"ret":0.007452},"2023-03-21":{"o":12699.75,"h":12898.25,"l":12676.5,"c":12867.25,"v":565860,"ret":0.014088},"2023-03-22":{"o":12873.25,"h":13082.0,"l":12678.0,"c":12707.0,"v":713083,"ret":-0.012454},"2023-03-23":{"o":12695.0,"h":13031.0,"l":12694.25,"c":12854.0,"v":838385,"ret":0.011568},"2023-03-24":{"o":12871.5,"h":12924.75,"l":12728.0,"c":12890.25,"v":676547,"ret":0.00282},"2023-03-27":{"o":12916.0,"h":12984.5,"l":12765.5,"c":12788.5,"v":562634,"ret":-0.007894},"2023-03-28":{"o":12810.5,"h":12833.5,"l":12634.25,"c":12732.5,"v":537965,"ret":-0.004379},"2023-03-29":{"o":12745.5,"h":12994.0,"l":12742.0,"c":12965.0,"v":566316,"ret":0.01826},"2023-03-30":{"o":12962.5,"h":13111.75,"l":12931.5,"c":13082.0,"v":583151,"ret":0.009024},"2023-03-31":{"o":13084.25,"h":13311.5,"l":13057.5,"c":13301.75,"v":624955,"ret":0.016798},"2023-04-03":{"o":13262.0,"h":13278.75,"l":13154.0,"c":13270.0,"v":542896,"ret":-0.002387},"2023-04-04":{"o":13259.0,"h":13348.75,"l":13168.25,"c":13219.0,"v":577032,"ret":-0.003843},"2023-04-05":{"o":13230.0,"h":13247.25,"l":13006.0,"c":13079.75,"v":594608,"ret":-0.010534},"2023-04-06":{"o":13072.75,"h":13191.0,"l":12953.25,"c":13170.75,"v":41224,"ret":0.006957},"2023-04-10":{"o":13179.75,"h":13203.25,"l":12967.5,"c":13158.0,"v":553003,"ret":-0.000968},"2023-04-11":{"o":13163.25,"h":13208.75,"l":13053.5,"c":13074.75,"v":549047,"ret":-0.006327},"2023-04-12":{"o":13073.75,"h":13241.75,"l":12937.75,"c":12952.25,"v":684779,"ret":-0.009369},"2023-04-13":{"o":12957.0,"h":13228.0,"l":12925.5,"c":13209.75,"v":558233,"ret":0.019881},"2023-04-14":{"o":13183.0,"h":13255.0,"l":13058.0,"c":13181.25,"v":627824,"ret":-0.002157},"2023-04-17":{"o":13212.5,"h":13218.0,"l":13076.75,"c":13186.5,"v":540742,"ret":0.000398},"2023-04-18":{"o":13184.0,"h":13298.75,"l":13138.0,"c":13193.0,"v":576668,"ret":0.000493},"2023-04-19":{"o":13170.5,"h":13226.75,"l":13065.0,"c":13183.0,"v":529506,"ret":-0.000758},"2023-04-20":{"o":13162.0,"h":13200.0,"l":13021.75,"c":13074.25,"v":680299,"ret":-0.008249},"2023-04-21":{"o":13089.0,"h":13122.0,"l":12982.5,"c":13090.5,"v":593982,"ret":0.001243},"2023-04-24":{"o":13070.0,"h":13134.0,"l":12967.25,"c":13056.5,"v":582286,"ret":-0.002597},"2023-04-25":{"o":13050.25,"h":13059.5,"l":12800.0,"c":12809.5,"v":694266,"ret":-0.018918},"2023-04-26":{"o":12940.0,"h":13012.25,"l":12863.75,"c":12887.75,"v":755124,"ret":0.006109},"2023-04-27":{"o":12965.0,"h":13333.0,"l":12936.0,"c":13231.25,"v":728241,"ret":0.026653},"2023-04-28":{"o":13215.0,"h":13336.0,"l":13169.0,"c":13320.25,"v":671058,"ret":0.006726},"2023-05-01":{"o":13317.0,"h":13370.25,"l":13258.75,"c":13306.75,"v":487908,"ret":-0.001013},"2023-05-02":{"o":13290.0,"h":13334.75,"l":13110.25,"c":13184.5,"v":664855,"ret":-0.009187},"2023-05-03":{"o":13162.0,"h":13314.0,"l":13080.0,"c":13100.75,"v":648753,"ret":-0.006352},"2023-05-04":{"o":13064.0,"h":13173.0,"l":13001.75,"c":13043.75,"v":656440,"ret":-0.004351},"2023-05-05":{"o":13060.0,"h":13359.0,"l":13055.75,"c":13317.75,"v":573291,"ret":0.021006},"2023-05-08":{"o":13316.0,"h":13368.0,"l":13254.5,"c":13352.25,"v":506054,"ret":0.002591},"2023-05-09":{"o":13338.5,"h":13347.0,"l":13250.5,"c":13264.75,"v":552248,"ret":-0.006553},"2023-05-10":{"o":13258.75,"h":13446.75,"l":13202.75,"c":13409.5,"v":839699,"ret":0.010912},"2023-05-11":{"o":13410.0,"h":13470.25,"l":13361.5,"c":13446.5,"v":653399,"ret":0.002759},"2023-05-12":{"o":13446.0,"h":13494.25,"l":13310.5,"c":13396.25,"v":628035,"ret":-0.003737},"2023-05-15":{"o":13378.75,"h":13480.0,"l":13350.0,"c":13468.0,"v":495940,"ret":0.005356},"2023-05-16":{"o":13461.0,"h":13554.5,"l":13426.25,"c":13483.25,"v":561834,"ret":0.001132},"2023-05-17":{"o":13498.5,"h":13669.0,"l":13474.25,"c":13643.5,"v":621137,"ret":0.011885},"2023-05-18":{"o":13640.5,"h":13913.0,"l":13628.25,"c":13894.0,"v":749496,"ret":0.01836},"2023-05-19":{"o":13908.5,"h":13960.25,"l":13814.25,"c":13858.0,"v":659819,"ret":-0.002591},"2023-05-22":{"o":13805.5,"h":13946.75,"l":13794.25,"c":13902.5,"v":538203,"ret":0.003211},"2023-05-23":{"o":13913.25,"h":13979.25,"l":13710.0,"c":13728.75,"v":658680,"ret":-0.012498},"2023-05-24":{"o":13729.0,"h":13845.75,"l":13566.5,"c":13650.25,"v":704804,"ret":-0.005718},"2023-05-25":{"o":13877.0,"h":14031.25,"l":13803.0,"c":13976.5,"v":819148,"ret":0.023901},"2023-05-26":{"o":13977.75,"h":14369.0,"l":13924.5,"c":14332.5,"v":729047,"ret":0.025471},"2023-05-30":{"o":14437.5,"h":14570.0,"l":14336.75,"c":14396.75,"v":882198,"ret":0.004483},"2023-05-31":{"o":14397.25,"h":14429.0,"l":14251.25,"c":14300.5,"v":680429,"ret":-0.006686},"2023-06-01":{"o":14289.5,"h":14528.25,"l":14248.25,"c":14472.25,"v":622329,"ret":0.01201},"2023-06-02":{"o":14494.0,"h":14627.75,"l":14468.25,"c":14575.25,"v":623290,"ret":0.007117},"2023-06-05":{"o":14577.0,"h":14694.75,"l":14512.75,"c":14588.75,"v":619089,"ret":0.000926},"2023-06-06":{"o":14582.0,"h":14623.75,"l":14504.5,"c":14586.5,"v":572806,"ret":-0.000154},"2023-06-07":{"o":14594.5,"h":14675.0,"l":14305.5,"c":14331.5,"v":770555,"ret":-0.017482},"2023-06-08":{"o":14316.0,"h":14526.75,"l":14256.75,"c":14503.0,"v":631769,"ret":0.011967},"2023-06-09":{"o":14517.0,"h":14687.5,"l":14460.25,"c":14556.25,"v":581386,"ret":0.003672},"2023-06-12":{"o":14560.25,"h":14827.0,"l":14554.25,"c":14800.5,"v":397388,"ret":0.01678},"2023-06-13":{"o":14824.0,"h":14967.75,"l":14779.5,"c":14914.25,"v":347119,"ret":0.007686},"2023-06-14":{"o":14925.0,"h":15061.5,"l":14793.0,"c":15012.75,"v":204099,"ret":0.006604},"2023-06-15":{"o":15038.0,"h":15252.0,"l":14878.0,"c":15188.0,"v":139777,"ret":0.011673},"2023-06-16":{"o":15181.25,"h":15324.0,"l":15130.5,"c":15316.61,"v":636907,"ret":0.008468},"2023-06-20":{"o":15303.25,"h":15322.5,"l":15126.5,"c":15256.5,"v":652883,"ret":-0.003925},"2023-06-21":{"o":15247.5,"h":15273.25,"l":15002.25,"c":15044.0,"v":640702,"ret":-0.013928},"2023-06-22":{"o":15038.75,"h":15238.0,"l":14964.0,"c":15214.75,"v":611017,"ret":0.01135},"2023-06-23":{"o":15236.0,"h":15236.0,"l":14985.25,"c":15058.25,"v":620593,"ret":-0.010286},"2023-06-26":{"o":15057.75,"h":15152.5,"l":14853.5,"c":14856.5,"v":649993,"ret":-0.013398},"2023-06-27":{"o":14875.0,"h":15139.25,"l":14862.25,"c":15111.5,"v":569198,"ret":0.017164},"2023-06-28":{"o":15088.25,"h":15219.0,"l":15021.25,"c":15130.0,"v":662146,"ret":0.001224},"2023-06-29":{"o":15161.0,"h":15202.75,"l":15028.5,"c":15100.25,"v":594134,"ret":-0.001966},"2023-06-30":{"o":15106.0,"h":15376.75,"l":15099.0,"c":15337.0,"v":529455,"ret":0.015679},"2023-07-03":{"o":15331.0,"h":15392.0,"l":15308.0,"c":15364.75,"v":265064,"ret":0.001809},"2023-07-05":{"o":15357.0,"h":15432.0,"l":15255.25,"c":15360.75,"v":519857,"ret":-0.00026},"2023-07-06":{"o":15353.75,"h":15366.0,"l":15111.5,"c":15238.0,"v":574681,"ret":-0.007991},"2023-07-07":{"o":15211.75,"h":15359.75,"l":15172.25,"c":15181.75,"v":555119,"ret":-0.003691},"2023-07-10":{"o":15198.5,"h":15218.25,"l":15063.25,"c":15187.0,"v":609953,"ret":0.000346},"2023-07-11":{"o":15195.75,"h":15278.75,"l":15109.5,"c":15260.0,"v":552637,"ret":0.004807},"2023-07-12":{"o":15258.0,"h":15507.75,"l":15254.5,"c":15444.75,"v":649433,"ret":0.012107},"2023-07-13":{"o":15457.75,"h":15741.25,"l":15456.5,"c":15711.5,"v":563935,"ret":0.017271},"2023-07-14":{"o":15699.0,"h":15857.25,"l":15663.0,"c":15694.25,"v":629943,"ret":-0.001098},"2023-07-17":{"o":15690.0,"h":15882.75,"l":15661.5,"c":15840.75,"v":522129,"ret":0.009335},"2023-07-18":{"o":15832.0,"h":16029.75,"l":15733.0,"c":15974.75,"v":633272,"ret":0.008459},"2023-07-19":{"o":15949.25,"h":16062.75,"l":15911.25,"c":15959.25,"v":682279,"ret":-0.00097},"2023-07-20":{"o":15922.75,"h":15925.75,"l":15547.0,"c":15592.25,"v":810475,"ret":-0.022996},"2023-07-21":{"o":15590.75,"h":15719.25,"l":15522.25,"c":15540.0,"v":704413,"ret":-0.003351},"2023-07-24":{"o":15556.0,"h":15618.75,"l":15483.75,"c":15561.25,"v":561877,"ret":0.001367},"2023-07-25":{"o":15570.0,"h":15736.25,"l":15549.25,"c":15673.0,"v":554880,"ret":0.007181},"2023-07-26":{"o":15730.25,"h":15739.25,"l":15515.0,"c":15610.75,"v":683826,"ret":-0.003972},"2023-07-27":{"o":15638.75,"h":15904.0,"l":15511.25,"c":15571.0,"v":846437,"ret":-0.002546},"2023-07-28":{"o":15580.0,"h":15896.0,"l":15546.25,"c":15847.5,"v":689386,"ret":0.017757},"2023-07-31":{"o":15850.0,"h":15917.0,"l":15791.25,"c":15857.5,"v":523896,"ret":0.000631},"2023-08-01":{"o":15869.25,"h":15889.25,"l":15728.25,"c":15817.25,"v":529660,"ret":-0.002538},"2023-08-02":{"o":15757.0,"h":15789.75,"l":15414.0,"c":15473.0,"v":773499,"ret":-0.021764},"2023-08-03":{"o":15455.75,"h":15551.75,"l":15339.5,"c":15438.75,"v":658841,"ret":-0.002214},"2023-08-04":{"o":15441.0,"h":15610.25,"l":15336.5,"c":15354.0,"v":773229,"ret":-0.005489},"2023-08-07":{"o":15370.5,"h":15495.5,"l":15334.25,"c":15485.5,"v":578299,"ret":0.008565},"2023-08-08":{"o":15495.0,"h":15497.75,"l":15218.0,"c":15354.25,"v":638813,"ret":-0.008476},"2023-08-09":{"o":15351.75,"h":15432.5,"l":15146.5,"c":15178.25,"v":652732,"ret":-0.011463},"2023-08-10":{"o":15202.5,"h":15442.25,"l":15136.0,"c":15201.25,"v":807104,"ret":0.001515},"2023-08-11":{"o":15219.0,"h":15266.75,"l":15037.25,"c":15095.75,"v":613959,"ret":-0.00694},"2023-08-14":{"o":15104.0,"h":15282.0,"l":15020.75,"c":15270.25,"v":554628,"ret":0.01156},"2023-08-15":{"o":15279.0,"h":15335.0,"l":15074.75,"c":15106.5,"v":593602,"ret":-0.010723},"2023-08-16":{"o":15110.75,"h":15166.0,"l":14921.5,"c":14942.25,"v":641607,"ret":-0.010873},"2023-08-17":{"o":14940.25,"h":15018.25,"l":14738.25,"c":14778.0,"v":681399,"ret":-0.010992},"2023-08-18":{"o":14748.0,"h":14802.75,"l":14609.25,"c":14744.0,"v":731241,"ret":-0.002301},"2023-08-21":{"o":14762.5,"h":15013.75,"l":14720.5,"c":14985.75,"v":641685,"ret":0.016397},"2023-08-22":{"o":14974.5,"h":15118.25,"l":14932.0,"c":14958.5,"v":623728,"ret":-0.001818},"2023-08-23":{"o":14959.75,"h":15356.75,"l":14957.25,"c":15195.5,"v":606168,"ret":0.015844},"2023-08-24":{"o":15333.0,"h":15418.0,"l":14817.0,"c":14862.0,"v":847308,"ret":-0.021947},"2023-08-25":{"o":14833.0,"h":15048.75,"l":14751.75,"c":14979.25,"v":823889,"ret":0.007889},"2023-08-28":{"o":14991.0,"h":15126.5,"l":14973.5,"c":15092.5,"v":586342,"ret":0.00756},"2023-08-29":{"o":15098.75,"h":15430.5,"l":15049.75,"c":15415.75,"v":616223,"ret":0.021418},"2023-08-30":{"o":15427.5,"h":15522.75,"l":15361.5,"c":15501.25,"v":590194,"ret":0.005546},"2023-08-31":{"o":15513.75,"h":15606.75,"l":15460.0,"c":15538.5,"v":584743,"ret":0.002403},"2023-09-01":{"o":15534.0,"h":15661.25,"l":15454.0,"c":15516.25,"v":572689,"ret":-0.001432},"2023-09-05":{"o":15517.0,"h":15586.75,"l":15418.25,"c":15534.5,"v":604891,"ret":0.001176},"2023-09-06":{"o":15511.25,"h":15533.0,"l":15310.5,"c":15399.5,"v":596503,"ret":-0.00869},"2023-09-07":{"o":15385.0,"h":15395.75,"l":15157.5,"c":15282.25,"v":644887,"ret":-0.007614},"2023-09-08":{"o":15286.25,"h":15390.75,"l":15223.0,"c":15297.5,"v":598477,"ret":0.000998},"2023-09-11":{"o":15308.0,"h":15497.5,"l":15298.0,"c":15475.75,"v":411385,"ret":0.011652},"2023-09-12":{"o":15466.5,"h":15480.75,"l":15288.75,"c":15304.75,"v":253049,"ret":-0.01105},"2023-09-13":{"o":15308.5,"h":15424.25,"l":15212.75,"c":15356.25,"v":190166,"ret":0.003365},"2023-09-14":{"o":15372.75,"h":15517.75,"l":15337.25,"c":15478.0,"v":110435,"ret":0.007928},"2023-09-15":{"o":15480.25,"h":15524.0,"l":15401.25,"c":15435.2,"v":708762,"ret":-0.002765},"2023-09-18":{"o":15382.25,"h":15461.0,"l":15330.5,"c":15414.5,"v":509746,"ret":-0.001341},"2023-09-19":{"o":15424.25,"h":15442.25,"l":15248.5,"c":15375.25,"v":552065,"ret":-0.002546},"2023-09-20":{"o":15375.25,"h":15436.25,"l":15127.0,"c":15152.0,"v":605256,"ret":-0.01452},"2023-09-21":{"o":15133.25,"h":15149.0,"l":14841.0,"c":14862.75,"v":702742,"ret":-0.01909},"2023-09-22":{"o":14854.5,"h":15027.5,"l":14836.25,"c":14869.5,"v":624056,"ret":0.000454},"2023-09-25":{"o":14880.25,"h":14955.75,"l":14782.25,"c":14935.25,"v":568859,"ret":0.004422},"2023-09-26":{"o":14949.0,"h":14949.0,"l":14666.25,"c":14715.0,"v":667617,"ret":-0.014747},"2023-09-27":{"o":14725.25,"h":14821.5,"l":14586.0,"c":14739.0,"v":716200,"ret":0.001631},"2023-09-28":{"o":14772.5,"h":14947.5,"l":14658.0,"c":14859.75,"v":734472,"ret":0.008193},"2023-09-29":{"o":14876.5,"h":15060.75,"l":14811.0,"c":14866.5,"v":745541,"ret":0.000454},"2023-10-02":{"o":14965.0,"h":15046.0,"l":14826.0,"c":14984.75,"v":762896,"ret":0.007954},"2023-10-03":{"o":14989.5,"h":15031.0,"l":14651.5,"c":14714.5,"v":762964,"ret":-0.018035},"2023-10-04":{"o":14713.75,"h":14956.0,"l":14589.0,"c":14923.75,"v":803257,"ret":0.014221},"2023-10-05":{"o":14903.0,"h":14958.75,"l":14716.25,"c":14861.75,"v":676461,"ret":-0.004154},"2023-10-06":{"o":14853.75,"h":15160.25,"l":14660.0,"c":15112.0,"v":840602,"ret":0.016839},"2023-10-09":{"o":15040.25,"h":15212.75,"l":14949.5,"c":15187.0,"v":617072,"ret":0.004963},"2023-10-10":{"o":15196.5,"h":15383.5,"l":15171.75,"c":15270.75,"v":648613,"ret":0.005515},"2023-10-11":{"o":15282.25,"h":15416.75,"l":15253.0,"c":15380.0,"v":614965,"ret":0.007154},"2023-10-12":{"o":15407.5,"h":15468.75,"l":15216.25,"c":15315.0,"v":747494,"ret":-0.004226},"2023-10-13":{"o":15324.0,"h":15366.75,"l":15062.25,"c":15120.25,"v":777005,"ret":-0.012716},"2023-10-16":{"o":15120.0,"h":15336.75,"l":15083.0,"c":15289.5,"v":641294,"ret":0.011194},"2023-10-17":{"o":15305.75,"h":15309.25,"l":15050.25,"c":15240.75,"v":781599,"ret":-0.003188},"2023-10-18":{"o":15236.5,"h":15238.25,"l":14979.25,"c":15025.25,"v":853599,"ret":-0.01414},"2023-10-19":{"o":15045.0,"h":15138.25,"l":14839.5,"c":14890.0,"v":1019700,"ret":-0.009002},"2023-10-20":{"o":14850.0,"h":14887.5,"l":14645.0,"c":14664.0,"v":846675,"ret":-0.015178},"2023-10-23":{"o":14680.0,"h":14853.75,"l":14514.25,"c":14712.0,"v":765733,"ret":0.003273},"2023-10-24":{"o":14744.0,"h":14948.75,"l":14706.0,"c":14846.5,"v":703058,"ret":0.009142},"2023-10-25":{"o":14828.0,"h":14855.0,"l":14444.0,"c":14478.25,"v":820677,"ret":-0.024804},"2023-10-26":{"o":14425.0,"h":14459.0,"l":14140.25,"c":14194.0,"v":987597,"ret":-0.019633},"2023-10-27":{"o":14248.25,"h":14407.75,"l":14209.75,"c":14265.25,"v":782097,"ret":0.00502},"2023-10-30":{"o":14336.0,"h":14476.5,"l":14303.0,"c":14416.5,"v":704860,"ret":0.010603},"2023-10-31":{"o":14410.5,"h":14503.75,"l":14311.25,"c":14490.25,"v":712605,"ret":0.005116},"2023-11-01":{"o":14460.0,"h":14762.0,"l":14410.75,"c":14744.5,"v":741817,"ret":0.017546},"2023-11-02":{"o":14761.25,"h":15017.25,"l":14760.0,"c":14998.0,"v":652481,"ret":0.017193},"2023-11-03":{"o":14928.0,"h":15228.5,"l":14925.5,"c":15178.75,"v":633835,"ret":0.012052},"2023-11-06":{"o":15187.0,"h":15257.5,"l":15138.0,"c":15232.5,"v":496129,"ret":0.003541},"2023-11-07":{"o":15215.0,"h":15412.25,"l":15176.0,"c":15374.25,"v":585124,"ret":0.009306},"2023-11-08":{"o":15373.0,"h":15417.5,"l":15286.75,"c":15386.5,"v":547842,"ret":0.000797},"2023-11-09":{"o":15356.25,"h":15453.75,"l":15236.75,"c":15256.0,"v":710427,"ret":-0.008481},"2023-11-10":{"o":15254.75,"h":15612.75,"l":15207.25,"c":15596.25,"v":679633,"ret":0.022303},"2023-11-13":{"o":15586.25,"h":15601.25,"l":15465.25,"c":15547.0,"v":532937,"ret":-0.003158},"2023-11-14":{"o":15558.0,"h":15918.75,"l":15552.0,"c":15879.75,"v":656099,"ret":0.021403},"2023-11-15":{"o":15895.0,"h":16049.5,"l":15832.25,"c":15889.25,"v":685072,"ret":0.000598},"2023-11-16":{"o":15846.75,"h":15906.75,"l":15796.75,"c":15897.5,"v":634456,"ret":0.000519},"2023-11-17":{"o":15897.75,"h":15940.0,"l":15825.0,"c":15895.75,"v":562424,"ret":-0.00011},"2023-11-20":{"o":15895.0,"h":16116.75,"l":15837.25,"c":16086.5,"v":559493,"ret":0.012},"2023-11-21":{"o":16087.5,"h":16122.5,"l":15912.0,"c":15990.25,"v":575452,"ret":-0.005983},"2023-11-22":{"o":15967.25,"h":16173.5,"l":15942.75,"c":16049.25,"v":624552,"ret":0.00369},"2023-11-23":{"o":16036.75,"h":16086.5,"l":16034.5,"c":16062.5,"v":624552,"ret":0.000826},"2023-11-24":{"o":16036.75,"h":16086.5,"l":15981.75,"c":16021.0,"v":296604,"ret":-0.002584},"2023-11-27":{"o":16008.0,"h":16089.25,"l":15938.75,"c":16008.75,"v":502555,"ret":-0.000765},"2023-11-28":{"o":16005.25,"h":16071.5,"l":15945.25,"c":16048.0,"v":598224,"ret":0.002452},"2023-11-29":{"o":16055.5,"h":16208.5,"l":16013.5,"c":16023.75,"v":634326,"ret":-0.001511},"2023-11-30":{"o":16040.25,"h":16098.5,"l":15856.0,"c":15985.5,"v":694118,"ret":-0.002387},"2023-12-01":{"o":15955.0,"h":16050.0,"l":15864.0,"c":16023.75,"v":621710,"ret":0.002393},"2023-12-04":{"o":16022.0,"h":16026.0,"l":15721.25,"c":15869.0,"v":721019,"ret":-0.009658},"2023-12-05":{"o":15863.25,"h":15961.0,"l":15761.25,"c":15908.75,"v":683586,"ret":0.002505},"2023-12-06":{"o":15897.0,"h":16037.75,"l":15802.0,"c":15815.25,"v":675482,"ret":-0.005877},"2023-12-07":{"o":15814.5,"h":16066.0,"l":15791.0,"c":16038.75,"v":632326,"ret":0.014132},"2023-12-08":{"o":16017.5,"h":16118.75,"l":15888.25,"c":16098.25,"v":588926,"ret":0.00371},"2023-12-11":{"o":16093.0,"h":16248.0,"l":16045.5,"c":16237.0,"v":394184,"ret":0.008619},"2023-12-12":{"o":16240.0,"h":16389.5,"l":16185.25,"c":16362.75,"v":253666,"ret":0.007745},"2023-12-13":{"o":16383.0,"h":16593.0,"l":16365.5,"c":16563.75,"v":155141,"ret":0.012284},"2023-12-14":{"o":16561.5,"h":16674.5,"l":16418.75,"c":16541.5,"v":131883,"ret":-0.001343},"2023-12-15":{"o":16532.5,"h":16612.5,"l":16521.5,"c":16530.23,"v":668578,"ret":-0.000681},"2023-12-18":{"o":16820.25,"h":16974.0,"l":16802.25,"c":16939.75,"v":463438,"ret":0.024774},"2023-12-19":{"o":16917.0,"h":17029.5,"l":16910.75,"c":17023.0,"v":496518,"ret":0.004914},"2023-12-20":{"o":17024.0,"h":17073.5,"l":16758.5,"c":16766.25,"v":654329,"ret":-0.015083},"2023-12-21":{"o":16790.25,"h":16970.25,"l":16790.25,"c":16956.5,"v":639818,"ret":0.011347},"2023-12-22":{"o":16956.0,"h":17041.5,"l":16891.5,"c":16980.0,"v":486853,"ret":0.001386},"2023-12-26":{"o":16964.5,"h":17111.25,"l":16964.5,"c":17083.5,"v":292090,"ret":0.006095},"2023-12-27":{"o":17090.25,"h":17133.0,"l":17055.5,"c":17113.25,"v":424302,"ret":0.001741},"2023-12-28":{"o":17127.0,"h":17165.25,"l":17077.75,"c":17090.5,"v":357702,"ret":-0.001329},"2023-12-29":{"o":17090.25,"h":17131.0,"l":16938.25,"c":17023.5,"v":470864,"ret":-0.00392},"2024-01-02":{"o":17019.0,"h":17038.5,"l":16622.5,"c":16720.0,"v":652714,"ret":-0.017828},"2024-01-03":{"o":16736.75,"h":16737.25,"l":16522.0,"c":16538.0,"v":677219,"ret":-0.010885},"2024-01-04":{"o":16545.25,"h":16587.25,"l":16436.0,"c":16445.0,"v":559464,"ret":-0.005623},"2024-01-05":{"o":16455.0,"h":16577.25,"l":16334.25,"c":16460.25,"v":627475,"ret":0.000927},"2024-01-08":{"o":16470.0,"h":16811.25,"l":16378.25,"c":16803.75,"v":549900,"ret":0.020868},"2024-01-09":{"o":16788.0,"h":16868.5,"l":16657.75,"c":16830.25,"v":605921,"ret":0.001577},"2024-01-10":{"o":16829.5,"h":16983.0,"l":16801.5,"c":16945.25,"v":550703,"ret":0.006833},"2024-01-11":{"o":16955.0,"h":17057.0,"l":16753.0,"c":16966.25,"v":756441,"ret":0.001239},"2024-01-12":{"o":16957.75,"h":17042.5,"l":16866.5,"c":16969.25,"v":593445,"ret":0.000177},"2024-01-16":{"o":16961.75,"h":17033.75,"l":16811.75,"c":16966.5,"v":816021,"ret":-0.000162},"2024-01-17":{"o":16978.0,"h":16982.0,"l":16689.25,"c":16869.75,"v":722784,"ret":-0.005702},"2024-01-18":{"o":16854.5,"h":17125.75,"l":16834.25,"c":17110.0,"v":852229,"ret":0.014241},"2024-01-19":{"o":17116.0,"h":17471.25,"l":17107.25,"c":17438.5,"v":758132,"ret":0.019199},"2024-01-22":{"o":17466.0,"h":17585.0,"l":17434.0,"c":17458.5,"v":637245,"ret":0.001147},"2024-01-23":{"o":17461.0,"h":17558.25,"l":17409.5,"c":17531.25,"v":508078,"ret":0.004167},"2024-01-24":{"o":17554.0,"h":17793.5,"l":17552.25,"c":17621.0,"v":721605,"ret":0.005119},"2024-01-25":{"o":17614.75,"h":17752.0,"l":17542.0,"c":17634.5,"v":710822,"ret":0.000766},"2024-01-26":{"o":17571.25,"h":17632.0,"l":17466.0,"c":17527.0,"v":631481,"ret":-0.006096},"2024-01-29":{"o":17502.0,"h":17716.25,"l":17457.5,"c":17706.0,"v":568739,"ret":0.010213},"2024-01-30":{"o":17711.75,"h":17735.75,"l":17467.0,"c":17588.5,"v":554146,"ret":-0.006636},"2024-01-31":{"o":17415.5,"h":17484.0,"l":17221.5,"c":17242.25,"v":816119,"ret":-0.019686},"2024-02-01":{"o":17273.25,"h":17646.75,"l":17262.75,"c":17436.75,"v":705238,"ret":0.01128},"2024-02-02":{"o":17588.0,"h":17775.5,"l":17465.5,"c":17732.75,"v":761167,"ret":0.016976},"2024-02-05":{"o":17696.0,"h":17745.5,"l":17554.25,"c":17700.0,"v":621645,"ret":-0.001847},"2024-02-06":{"o":17698.5,"h":17769.0,"l":17560.75,"c":17660.0,"v":623168,"ret":-0.00226},"2024-02-07":{"o":17645.75,"h":17875.5,"l":17629.75,"c":17841.75,"v":613340,"ret":0.010292},"2024-02-08":{"o":17856.25,"h":17896.5,"l":17792.25,"c":17868.25,"v":471370,"ret":0.001485},"2024-02-09":{"o":17854.25,"h":18071.0,"l":17852.25,"c":18039.25,"v":499282,"ret":0.00957},"2024-02-12":{"o":18040.0,"h":18121.5,"l":17911.25,"c":17965.0,"v":538132,"ret":-0.004116},"2024-02-13":{"o":17928.5,"h":17963.25,"l":17542.0,"c":17676.75,"v":858230,"ret":-0.016045},"2024-02-14":{"o":17703.0,"h":17887.0,"l":17669.25,"c":17881.0,"v":688088,"ret":0.011555},"2024-02-15":{"o":17870.0,"h":17968.25,"l":17780.5,"c":17912.75,"v":657768,"ret":0.001776},"2024-02-16":{"o":17952.0,"h":18026.0,"l":17715.0,"c":17744.0,"v":744628,"ret":-0.009421},"2024-02-20":{"o":17729.25,"h":17807.5,"l":17452.5,"c":17607.25,"v":889292,"ret":-0.007707},"2024-02-21":{"o":17573.0,"h":17723.0,"l":17372.75,"c":17536.75,"v":731450,"ret":-0.004004},"2024-02-22":{"o":17702.5,"h":18087.0,"l":17676.0,"c":18047.5,"v":759232,"ret":0.029125},"2024-02-23":{"o":18023.25,"h":18144.75,"l":17946.0,"c":17991.0,"v":659725,"ret":-0.003131},"2024-02-26":{"o":17961.5,"h":18059.5,"l":17922.0,"c":17977.0,"v":526169,"ret":-0.000778},"2024-02-27":{"o":17951.0,"h":18040.25,"l":17908.75,"c":18021.0,"v":567818,"ret":0.002448},"2024-02-28":{"o":18017.5,"h":18019.75,"l":17846.25,"c":17915.25,"v":553731,"ret":-0.005868},"2024-02-29":{"o":17870.0,"h":18109.5,"l":17826.0,"c":18082.75,"v":680147,"ret":0.00935},"2024-03-01":{"o":18075.0,"h":18372.75,"l":18029.5,"c":18338.25,"v":639153,"ret":0.014129},"2024-03-04":{"o":18336.0,"h":18377.75,"l":18234.25,"c":18262.0,"v":569342,"ret":-0.004158},"2024-03-05":{"o":18246.0,"h":18252.0,"l":17832.5,"c":17930.25,"v":803857,"ret":-0.018166},"2024-03-06":{"o":17981.0,"h":18174.25,"l":17942.5,"c":18044.25,"v":806131,"ret":0.006358},"2024-03-07":{"o":18041.0,"h":18360.0,"l":17915.75,"c":18316.25,"v":758499,"ret":0.015074},"2024-03-08":{"o":18279.0,"h":18436.5,"l":18012.5,"c":18046.75,"v":1048847,"ret":-0.014714},"2024-03-11":{"o":18056.0,"h":18068.25,"l":17890.5,"c":17971.0,"v":472517,"ret":-0.004197},"2024-03-12":{"o":18010.5,"h":18241.75,"l":17930.0,"c":18227.75,"v":281274,"ret":0.014287},"2024-03-13":{"o":18218.0,"h":18256.5,"l":18033.25,"c":18078.5,"v":179714,"ret":-0.008188},"2024-03-14":{"o":18094.25,"h":18177.75,"l":17915.5,"c":18024.5,"v":110277,"ret":-0.002987},"2024-03-15":{"o":18006.0,"h":18074.75,"l":17831.75,"c":17854.75,"v":705711,"ret":-0.009418},"2024-03-18":{"o":18073.5,"h":18381.0,"l":18062.25,"c":18231.5,"v":656629,"ret":0.021101},"2024-03-19":{"o":18222.0,"h":18289.25,"l":18053.25,"c":18270.0,"v":660394,"ret":0.002112},"2024-03-20":{"o":18274.0,"h":18545.0,"l":18227.5,"c":18479.75,"v":618809,"ret":0.011481},"2024-03-21":{"o":18539.75,"h":18709.0,"l":18526.75,"c":18561.75,"v":606959,"ret":0.004437},"2024-03-22":{"o":18580.5,"h":18626.0,"l":18492.0,"c":18574.75,"v":511962,"ret":0.0007},"2024-03-25":{"o":18567.0,"h":18601.25,"l":18414.75,"c":18513.5,"v":456250,"ret":-0.003297},"2024-03-26":{"o":18531.25,"h":18619.0,"l":18439.25,"c":18449.0,"v":516507,"ret":-0.003484},"2024-03-27":{"o":18477.5,"h":18571.75,"l":18378.5,"c":18503.75,"v":605634,"ret":0.002968},"2024-03-28":{"o":18505.0,"h":18538.75,"l":18447.5,"c":18475.0,"v":515193,"ret":-0.001554},"2024-04-01":{"o":18503.0,"h":18612.0,"l":18414.5,"c":18497.25,"v":572133,"ret":0.001204},"2024-04-02":{"o":18497.25,"h":18511.0,"l":18201.5,"c":18330.0,"v":618982,"ret":-0.009042},"2024-04-03":{"o":18345.0,"h":18451.75,"l":18232.5,"c":18373.25,"v":597987,"ret":0.00236},"2024-04-04":{"o":18388.5,"h":18568.0,"l":18055.25,"c":18076.75,"v":777140,"ret":-0.016138},"2024-04-05":{"o":18086.25,"h":18408.25,"l":18051.5,"c":18300.75,"v":809193,"ret":0.012392},"2024-04-08":{"o":18348.25,"h":18376.0,"l":18237.5,"c":18295.0,"v":524203,"ret":-0.000314},"2024-04-09":{"o":18314.75,"h":18407.25,"l":18160.75,"c":18359.75,"v":696069,"ret":0.003539},"2024-04-10":{"o":18381.0,"h":18474.25,"l":18053.5,"c":18196.75,"v":880504,"ret":-0.008878},"2024-04-11":{"o":18184.0,"h":18518.75,"l":18088.0,"c":18485.0,"v":728802,"ret":0.015841},"2024-04-12":{"o":18486.25,"h":18507.75,"l":18120.25,"c":18179.25,"v":787334,"ret":-0.01654},"2024-04-15":{"o":18151.0,"h":18350.75,"l":17841.5,"c":17876.25,"v":797316,"ret":-0.016667},"2024-04-16":{"o":17879.0,"h":17988.0,"l":17792.0,"c":17881.25,"v":766364,"ret":0.00028},"2024-04-17":{"o":17897.0,"h":17968.5,"l":17615.25,"c":17658.5,"v":844749,"ret":-0.012457},"2024-04-18":{"o":17669.75,"h":17770.75,"l":17506.25,"c":17547.25,"v":756158,"ret":-0.0063},"2024-04-19":{"o":17530.75,"h":17553.25,"l":17113.25,"c":17180.75,"v":1023135,"ret":-0.020886},"2024-04-22":{"o":17228.25,"h":17448.0,"l":17148.5,"c":17350.0,"v":646130,"ret":0.009851},"2024-04-23":{"o":17352.25,"h":17666.0,"l":17286.25,"c":17606.75,"v":601826,"ret":0.014798},"2024-04-24":{"o":17682.0,"h":17795.5,"l":17481.75,"c":17664.5,"v":667402,"ret":0.00328},"2024-04-25":{"o":17450.0,"h":17827.5,"l":17308.25,"c":17567.5,"v":820011,"ret":-0.005491},"2024-04-26":{"o":17808.25,"h":17901.5,"l":17668.25,"c":17845.75,"v":628227,"ret":0.015839},"2024-04-29":{"o":17864.75,"h":17949.0,"l":17791.25,"c":17904.25,"v":528891,"ret":0.003278},"2024-04-30":{"o":17918.5,"h":17920.25,"l":17473.5,"c":17571.25,"v":677704,"ret":-0.018599},"2024-05-01":{"o":17462.5,"h":17793.25,"l":17399.25,"c":17438.25,"v":791170,"ret":-0.007569},"2024-05-02":{"o":17487.0,"h":17755.25,"l":17386.25,"c":17649.75,"v":635300,"ret":0.012129},"2024-05-03":{"o":17744.25,"h":18050.25,"l":17719.5,"c":18000.75,"v":556949,"ret":0.019887},"2024-05-06":{"o":18047.5,"h":18201.25,"l":17983.75,"c":18195.5,"v":395489,"ret":0.010819},"2024-05-07":{"o":18189.5,"h":18266.25,"l":18151.0,"c":18199.5,"v":469722,"ret":0.00022},"2024-05-08":{"o":18194.0,"h":18242.25,"l":18072.5,"c":18186.5,"v":453714,"ret":-0.000714},"2024-05-09":{"o":18160.75,"h":18240.25,"l":18103.75,"c":18214.5,"v":471196,"ret":0.00154},"2024-05-10":{"o":18226.0,"h":18348.0,"l":18188.5,"c":18255.0,"v":473881,"ret":0.002224},"2024-05-13":{"o":18238.0,"h":18336.25,"l":18228.75,"c":18295.5,"v":411036,"ret":0.002219},"2024-05-14":{"o":18282.0,"h":18433.0,"l":18165.5,"c":18415.0,"v":555369,"ret":0.006532},"2024-05-15":{"o":18409.75,"h":18707.0,"l":18393.0,"c":18691.75,"v":605869,"ret":0.015029},"2024-05-16":{"o":18693.25,"h":18760.75,"l":18633.25,"c":18650.0,"v":548582,"ret":-0.002234},"2024-05-17":{"o":18642.0,"h":18686.75,"l":18545.0,"c":18635.25,"v":489227,"ret":-0.000791},"2024-05-20":{"o":18633.5,"h":18794.5,"l":18633.0,"c":18763.0,"v":470381,"ret":0.006855},"2024-05-21":{"o":18746.0,"h":18808.75,"l":18678.0,"c":18799.25,"v":426117,"ret":0.001932},"2024-05-22":{"o":18798.25,"h":18891.0,"l":18684.25,"c":18786.75,"v":578439,"ret":-0.000665},"2024-05-23":{"o":18860.5,"h":19023.25,"l":18621.5,"c":18696.25,"v":851576,"ret":-0.004817},"2024-05-24":{"o":18684.0,"h":18926.0,"l":18680.0,"c":18876.0,"v":552083,"ret":0.009614},"2024-05-28":{"o":18874.75,"h":18980.5,"l":18819.5,"c":18940.5,"v":642954,"ret":0.003417},"2024-05-29":{"o":18949.5,"h":18949.75,"l":18740.0,"c":18802.75,"v":573938,"ret":-0.007273},"2024-05-30":{"o":18753.0,"h":18787.0,"l":18546.25,"c":18606.5,"v":619548,"ret":-0.010437},"2024-05-31":{"o":18590.75,"h":18668.25,"l":18241.25,"c":18591.0,"v":834003,"ret":-0.000833},"2024-06-03":{"o":18590.25,"h":18755.5,"l":18435.75,"c":18646.25,"v":669104,"ret":0.002972},"2024-06-04":{"o":18662.5,"h":18753.25,"l":18511.25,"c":18701.0,"v":616703,"ret":0.002936},"2024-06-05":{"o":18711.0,"h":19090.5,"l":18696.25,"c":19074.25,"v":575227,"ret":0.019959},"2024-06-06":{"o":19089.5,"h":19124.5,"l":19017.25,"c":19060.25,"v":524900,"ret":-0.000734},"2024-06-07":{"o":19064.0,"h":19155.0,"l":18940.0,"c":19037.75,"v":612033,"ret":-0.00118},"2024-06-10":{"o":19025.0,"h":19129.75,"l":18974.25,"c":19109.75,"v":571666,"ret":0.003782},"2024-06-11":{"o":19107.25,"h":19257.5,"l":18994.5,"c":19242.25,"v":564706,"ret":0.006934},"2024-06-12":{"o":19248.0,"h":19612.25,"l":19233.5,"c":19496.5,"v":691079,"ret":0.013213},"2024-06-13":{"o":19602.0,"h":19691.0,"l":19500.0,"c":19602.5,"v":584725,"ret":0.005437},"2024-06-14":{"o":19602.75,"h":19699.5,"l":19501.5,"c":19685.5,"v":584288,"ret":0.004234},"2024-06-17":{"o":19695.0,"h":20001.0,"l":19640.5,"c":19921.25,"v":423232,"ret":0.011976},"2024-06-18":{"o":19918.5,"h":19996.5,"l":19851.75,"c":19919.25,"v":201834,"ret":-0.0001},"2024-06-20":{"o":19930.25,"h":20095.0,"l":19694.25,"c":19763.25,"v":157046,"ret":-0.007832},"2024-06-21":{"o":19781.25,"h":19819.25,"l":19687.5,"c":19747.29,"v":590839,"ret":-0.000808},"2024-06-24":{"o":20014.75,"h":20030.25,"l":19728.0,"c":19750.75,"v":683900,"ret":0.000175},"2024-06-25":{"o":19756.0,"h":19981.25,"l":19726.0,"c":19972.25,"v":574518,"ret":0.011215},"2024-06-26":{"o":19973.0,"h":20070.5,"l":19901.0,"c":20012.5,"v":590175,"ret":0.002015},"2024-06-27":{"o":19946.0,"h":20116.75,"l":19874.25,"c":20039.5,"v":589649,"ret":0.001349},"2024-06-28":{"o":20063.25,"h":20273.25,"l":19906.25,"c":19927.25,"v":750324,"ret":-0.005601},"2024-07-01":{"o":19970.0,"h":20074.0,"l":19811.75,"c":20052.0,"v":639341,"ret":0.00626},"2024-07-02":{"o":20045.75,"h":20259.25,"l":19910.0,"c":20255.25,"v":621477,"ret":0.010136},"2024-07-03":{"o":20241.0,"h":20435.25,"l":20205.0,"c":20411.5,"v":395129,"ret":0.007714},"2024-07-05":{"o":20419.25,"h":20639.5,"l":20361.0,"c":20620.75,"v":600207,"ret":0.010252},"2024-07-08":{"o":20591.5,"h":20688.0,"l":20579.25,"c":20659.75,"v":497107,"ret":0.001891},"2024-07-09":{"o":20681.0,"h":20771.75,"l":20615.75,"c":20678.5,"v":569689,"ret":0.000908},"2024-07-10":{"o":20686.0,"h":20916.75,"l":20684.5,"c":20899.75,"v":576694,"ret":0.0107},"2024-07-11":{"o":20895.5,"h":20983.75,"l":20377.25,"c":20441.75,"v":906128,"ret":-0.021914},"2024-07-12":{"o":20432.75,"h":20741.0,"l":20335.0,"c":20524.0,"v":724343,"ret":0.004024},"2024-07-15":{"o":20580.0,"h":20797.0,"l":20506.25,"c":20583.75,"v":703410,"ret":0.002911},"2024-07-16":{"o":20628.0,"h":20684.5,"l":20464.5,"c":20598.0,"v":629745,"ret":0.000692},"2024-07-17":{"o":20591.0,"h":20597.75,"l":19965.75,"c":19997.5,"v":854323,"ret":-0.029153},"2024-07-18":{"o":20024.25,"h":20162.5,"l":19758.75,"c":19899.25,"v":964287,"ret":-0.004913},"2024-07-19":{"o":19955.0,"h":19979.75,"l":19654.0,"c":19713.0,"v":774109,"ret":-0.00936},"2024-07-22":{"o":19749.0,"h":20044.75,"l":19718.75,"c":20001.0,"v":657854,"ret":0.01461},"2024-07-23":{"o":19982.0,"h":20084.75,"l":19868.25,"c":19925.0,"v":601990,"ret":-0.0038},"2024-07-24":{"o":19883.0,"h":19883.0,"l":19168.75,"c":19203.25,"v":846812,"ret":-0.036223},"2024-07-25":{"o":19260.0,"h":19390.5,"l":18883.25,"c":18992.25,"v":992015,"ret":-0.010988},"2024-07-26":{"o":19003.0,"h":19297.75,"l":18995.0,"c":19174.5,"v":694702,"ret":0.009596},"2024-07-29":{"o":19171.75,"h":19377.25,"l":19113.25,"c":19209.25,"v":600017,"ret":0.001812},"2024-07-30":{"o":19217.0,"h":19319.75,"l":18725.0,"c":18936.25,"v":745002,"ret":-0.014212},"2024-07-31":{"o":18865.75,"h":19648.0,"l":18861.75,"c":19505.25,"v":762246,"ret":0.030048},"2024-08-01":{"o":19593.25,"h":19717.0,"l":18854.0,"c":19023.25,"v":920616,"ret":-0.024711},"2024-08-02":{"o":18956.5,"h":18979.75,"l":18385.75,"c":18556.25,"v":842228,"ret":-0.024549},"2024-08-05":{"o":18390.0,"h":18390.0,"l":17351.0,"c":18013.25,"v":937137,"ret":-0.029262},"2024-08-06":{"o":18165.75,"h":18483.25,"l":17966.0,"c":18179.0,"v":697089,"ret":0.009202},"2024-08-07":{"o":18033.0,"h":18558.5,"l":17836.25,"c":17966.5,"v":725244,"ret":-0.011689},"2024-08-08":{"o":17873.0,"h":18593.5,"l":17741.75,"c":18525.25,"v":663957,"ret":0.0311},"2024-08-09":{"o":18550.25,"h":18674.5,"l":18383.0,"c":18616.0,"v":501761,"ret":0.004899},"2024-08-12":{"o":18590.0,"h":18765.25,"l":18515.0,"c":18639.5,"v":469892,"ret":0.001262},"2024-08-13":{"o":18648.25,"h":19122.5,"l":18628.5,"c":19104.25,"v":497670,"ret":0.024934},"2024-08-14":{"o":19099.25,"h":19203.5,"l":18925.5,"c":19115.0,"v":553997,"ret":0.000563},"2024-08-15":{"o":19142.5,"h":19603.25,"l":19100.5,"c":19581.25,"v":522322,"ret":0.024392},"2024-08-16":{"o":19570.25,"h":19683.0,"l":19447.5,"c":19605.75,"v":458933,"ret":0.001251},"2024-08-19":{"o":19629.0,"h":19871.75,"l":19525.25,"c":19857.75,"v":429305,"ret":0.012853},"2024-08-20":{"o":19857.75,"h":19931.0,"l":19743.0,"c":19809.5,"v":485435,"ret":-0.00243},"2024-08-21":{"o":19803.0,"h":19981.75,"l":19771.5,"c":19909.5,"v":479077,"ret":0.005048},"2024-08-22":{"o":19921.25,"h":20025.25,"l":19542.0,"c":19578.25,"v":630179,"ret":-0.016638},"2024-08-23":{"o":19621.5,"h":19904.25,"l":19591.75,"c":19790.75,"v":581201,"ret":0.010854},"2024-08-26":{"o":19787.75,"h":19846.25,"l":19505.5,"c":19591.25,"v":473540,"ret":-0.01008},"2024-08-27":{"o":19558.75,"h":19694.25,"l":19441.5,"c":19653.75,"v":441146,"ret":0.00319},"2024-08-28":{"o":19635.5,"h":19691.0,"l":19227.25,"c":19415.75,"v":537278,"ret":-0.01211},"2024-08-29":{"o":19217.0,"h":19693.5,"l":19140.25,"c":19393.25,"v":669705,"ret":-0.001159},"2024-08-30":{"o":19445.75,"h":19632.75,"l":19370.5,"c":19623.0,"v":495609,"ret":0.011847},"2024-09-03":{"o":19599.0,"h":19683.0,"l":18911.0,"c":19006.5,"v":698442,"ret":-0.031417},"2024-09-04":{"o":18993.75,"h":19114.75,"l":18825.75,"c":18962.5,"v":582116,"ret":-0.002315},"2024-09-05":{"o":18965.75,"h":19150.5,"l":18827.25,"c":18963.5,"v":585125,"ret":5.3e-05},"2024-09-06":{"o":18921.0,"h":18972.25,"l":18339.75,"c":18458.25,"v":726350,"ret":-0.026643},"2024-09-09":{"o":18400.0,"h":18734.5,"l":18386.0,"c":18692.25,"v":726350,"ret":0.012677},"2024-09-10":{"o":18727.0,"h":18878.5,"l":18582.25,"c":18864.0,"v":536220,"ret":0.009188},"2024-09-11":{"o":18837.75,"h":19293.5,"l":18547.0,"c":19271.0,"v":729344,"ret":0.021575},"2024-09-12":{"o":19241.5,"h":19483.5,"l":19185.0,"c":19447.25,"v":581032,"ret":0.009146},"2024-09-13":{"o":19419.5,"h":19577.25,"l":19398.25,"c":19530.25,"v":467948,"ret":0.004268},"2024-09-16":{"o":19498.0,"h":19546.5,"l":19299.25,"c":19433.0,"v":339781,"ret":-0.004979},"2024-09-17":{"o":19426.5,"h":19615.5,"l":19341.0,"c":19439.25,"v":254059,"ret":0.000322},"2024-09-18":{"o":19451.0,"h":19660.0,"l":19331.0,"c":19349.25,"v":138848,"ret":-0.00463},"2024-09-19":{"o":19420.5,"h":19966.25,"l":19408.75,"c":19850.25,"v":134917,"ret":0.025892},"2024-09-20":{"o":19831.25,"h":19838.25,"l":19746.5,"c":19808.01,"v":479646,"ret":-0.002128},"2024-09-23":{"o":20040.0,"h":20164.0,"l":19955.25,"c":20080.0,"v":394947,"ret":0.013731},"2024-09-24":{"o":20063.25,"h":20214.75,"l":19953.0,"c":20167.75,"v":457126,"ret":0.00437},"2024-09-25":{"o":20183.75,"h":20271.0,"l":20064.25,"c":20192.0,"v":405050,"ret":0.001202},"2024-09-26":{"o":20242.0,"h":20538.0,"l":20188.0,"c":20346.25,"v":509755,"ret":0.007639},"2024-09-27":{"o":20345.0,"h":20395.75,"l":20173.0,"c":20221.5,"v":435634,"ret":-0.006131},"2024-09-30":{"o":20198.5,"h":20287.0,"l":20056.0,"c":20261.25,"v":510434,"ret":0.001966},"2024-10-01":{"o":20234.25,"h":20331.75,"l":19818.0,"c":19975.0,"v":662776,"ret":-0.014128},"2024-10-02":{"o":19975.25,"h":20090.25,"l":19833.5,"c":20009.75,"v":475599,"ret":0.00174},"2024-10-03":{"o":20055.5,"h":20113.75,"l":19852.0,"c":19990.25,"v":526765,"ret":-0.000975},"2024-10-04":{"o":19965.5,"h":20263.75,"l":19941.5,"c":20227.25,"v":560070,"ret":0.011856},"2024-10-07":{"o":20220.0,"h":20267.25,"l":19948.0,"c":19992.75,"v":450371,"ret":-0.011593},"2024-10-08":{"o":20025.75,"h":20329.5,"l":19902.5,"c":20298.5,"v":444750,"ret":0.015293},"2024-10-09":{"o":20294.25,"h":20482.75,"l":20196.0,"c":20463.5,"v":421249,"ret":0.008129},"2024-10-10":{"o":20445.25,"h":20508.25,"l":20301.5,"c":20429.75,"v":450569,"ret":-0.001649},"2024-10-11":{"o":20435.0,"h":20494.25,"l":20314.75,"c":20450.0,"v":385312,"ret":0.000991},"2024-10-14":{"o":20432.5,"h":20680.0,"l":20383.25,"c":20619.25,"v":395756,"ret":0.008276},"2024-10-15":{"o":20638.75,"h":20659.25,"l":20254.0,"c":20342.0,"v":522391,"ret":-0.013446},"2024-10-16":{"o":20334.5,"h":20398.5,"l":20206.25,"c":20349.5,"v":417571,"ret":0.000369},"2024-10-17":{"o":20328.0,"h":20594.75,"l":20276.75,"c":20368.0,"v":535486,"ret":0.000909},"2024-10-18":{"o":20384.0,"h":20529.75,"l":20320.75,"c":20483.5,"v":385566,"ret":0.005671},"2024-10-21":{"o":20496.25,"h":20554.5,"l":20343.75,"c":20519.5,"v":456078,"ret":0.001758},"2024-10-22":{"o":20536.5,"h":20602.25,"l":20360.25,"c":20542.0,"v":476324,"ret":0.001097},"2024-10-23":{"o":20521.0,"h":20542.5,"l":20079.0,"c":20220.5,"v":619162,"ret":-0.015651},"2024-10-24":{"o":20294.25,"h":20428.5,"l":20261.75,"c":20380.25,"v":462552,"ret":0.0079},"2024-10-25":{"o":20388.5,"h":20707.25,"l":20364.0,"c":20498.75,"v":585929,"ret":0.005814},"2024-10-28":{"o":20525.5,"h":20676.5,"l":20486.0,"c":20497.0,"v":430120,"ret":-8.5e-05},"2024-10-29":{"o":20513.0,"h":20760.25,"l":20432.25,"c":20696.5,"v":498020,"ret":0.009733},"2024-10-30":{"o":20734.0,"h":20788.5,"l":20472.5,"c":20534.75,"v":519409,"ret":-0.007815},"2024-10-31":{"o":20482.0,"h":20495.75,"l":20008.5,"c":20021.75,"v":686677,"ret":-0.024982},"2024-11-01":{"o":20071.0,"h":20288.0,"l":20017.0,"c":20153.25,"v":554025,"ret":0.006568},"2024-11-04":{"o":20138.0,"h":20248.5,"l":20013.0,"c":20086.0,"v":520521,"ret":-0.003337},"2024-11-05":{"o":20130.75,"h":20385.5,"l":20041.75,"c":20341.75,"v":450115,"ret":0.012733},"2024-11-06":{"o":20360.5,"h":20935.25,"l":20323.5,"c":20894.0,"v":632408,"ret":0.027149},"2024-11-07":{"o":20923.5,"h":21253.0,"l":20861.5,"c":21224.75,"v":462805,"ret":0.01583},"2024-11-08":{"o":21224.25,"h":21265.0,"l":21121.75,"c":21231.25,"v":401943,"ret":0.000306},"2024-11-11":{"o":21249.75,"h":21340.75,"l":21098.25,"c":21217.75,"v":456006,"ret":-0.000636},"2024-11-12":{"o":21221.0,"h":21251.75,"l":21054.75,"c":21189.5,"v":511372,"ret":-0.001331},"2024-11-13":{"o":21178.0,"h":21268.5,"l":21056.5,"c":21159.5,"v":533739,"ret":-0.001416},"2024-11-14":{"o":21167.0,"h":21190.25,"l":20950.5,"c":21011.75,"v":561950,"ret":-0.006983},"2024-11-15":{"o":20977.5,"h":20981.5,"l":20405.25,"c":20493.75,"v":691851,"ret":-0.024653},"2024-11-18":{"o":20504.0,"h":20724.25,"l":20476.0,"c":20633.5,"v":525474,"ret":0.006819},"2024-11-19":{"o":20633.25,"h":20792.5,"l":20382.5,"c":20767.75,"v":553617,"ret":0.006506},"2024-11-20":{"o":20762.25,"h":20843.25,"l":20477.0,"c":20749.0,"v":619493,"ret":-0.000903},"2024-11-21":{"o":20738.0,"h":20905.75,"l":20514.25,"c":20829.5,"v":698342,"ret":0.00388},"2024-11-22":{"o":20794.0,"h":20880.0,"l":20693.25,"c":20849.75,"v":541554,"ret":0.000972},"2024-11-25":{"o":20935.0,"h":21081.0,"l":20780.25,"c":20880.25,"v":544568,"ret":0.001463},"2024-11-26":{"o":20906.25,"h":21024.75,"l":20755.0,"c":20993.5,"v":505254,"ret":0.005424},"2024-11-27":{"o":20990.75,"h":21019.0,"l":20675.0,"c":20813.0,"v":520026,"ret":-0.008598},"2024-11-29":{"o":20813.0,"h":21017.5,"l":20805.5,"c":20993.5,"v":339955,"ret":0.008672},"2024-12-02":{"o":20995.25,"h":21259.75,"l":20940.0,"c":21218.0,"v":475464,"ret":0.010694},"2024-12-03":{"o":21220.0,"h":21329.0,"l":21134.25,"c":21281.5,"v":444143,"ret":0.002993},"2024-12-04":{"o":21323.0,"h":21548.5,"l":21305.75,"c":21536.5,"v":461922,"ret":0.011982},"2024-12-05":{"o":21513.25,"h":21567.25,"l":21437.5,"c":21473.25,"v":421035,"ret":-0.002937},"2024-12-06":{"o":21450.0,"h":21669.25,"l":21424.75,"c":21656.75,"v":459878,"ret":0.008546},"2024-12-09":{"o":21649.0,"h":21706.25,"l":21436.0,"c":21483.75,"v":517123,"ret":-0.007988},"2024-12-10":{"o":21479.25,"h":21606.75,"l":21352.75,"c":21405.25,"v":544406,"ret":-0.003654},"2024-12-11":{"o":21436.0,"h":21820.0,"l":21405.75,"c":21793.5,"v":547213,"ret":0.018138},"2024-12-12":{"o":21756.75,"h":21772.5,"l":21604.25,"c":21651.25,"v":510307,"ret":-0.006527},"2024-12-13":{"o":21720.75,"h":21908.0,"l":21666.5,"c":21795.75,"v":639403,"ret":0.006674},"2024-12-16":{"o":21780.25,"h":22152.5,"l":21762.0,"c":22110.25,"v":482433,"ret":0.014429},"2024-12-17":{"o":22115.0,"h":22124.5,"l":21942.25,"c":22014.75,"v":277298,"ret":-0.004319},"2024-12-18":{"o":22010.0,"h":22083.75,"l":21034.25,"c":21218.75,"v":209588,"ret":-0.036158},"2024-12-19":{"o":21218.5,"h":21424.25,"l":21080.0,"c":21112.75,"v":124728,"ret":-0.004996},"2024-12-20":{"o":21151.5,"h":21151.5,"l":20745.0,"c":20947.98,"v":864714,"ret":-0.007804},"2024-12-23":{"o":21566.0,"h":21776.75,"l":21476.75,"c":21753.25,"v":508598,"ret":0.038441},"2024-12-24":{"o":21743.25,"h":22049.75,"l":21709.0,"c":22028.5,"v":261201,"ret":0.012653},"2024-12-26":{"o":22049.5,"h":22111.25,"l":21870.25,"c":22008.0,"v":407116,"ret":-0.000931},"2024-12-27":{"o":21990.75,"h":22008.0,"l":21498.75,"c":21698.5,"v":572604,"ret":-0.014063},"2024-12-30":{"o":21711.0,"h":21742.75,"l":21253.0,"c":21416.25,"v":530975,"ret":-0.013008},"2024-12-31":{"o":21390.25,"h":21524.75,"l":21182.0,"c":21226.5,"v":477280,"ret":-0.00886},"2025-01-02":{"o":21269.0,"h":21490.5,"l":20983.75,"c":21167.5,"v":664742,"ret":-0.00278},"2025-01-03":{"o":21186.75,"h":21559.25,"l":21144.0,"c":21516.5,"v":488243,"ret":0.016488},"2025-01-06":{"o":21532.25,"h":21896.75,"l":21478.25,"c":21744.5,"v":574300,"ret":0.010597},"2025-01-07":{"o":21781.25,"h":21806.0,"l":21279.5,"c":21359.75,"v":645144,"ret":-0.017694},"2025-01-08":{"o":21380.75,"h":21448.25,"l":21166.25,"c":21360.75,"v":637114,"ret":4.7e-05},"2025-01-09":{"o":21334.75,"h":21347.25,"l":21218.0,"c":21301.5,"v":77170,"ret":-0.002774},"2025-01-10":{"o":21302.75,"h":21372.5,"l":20874.75,"c":21016.0,"v":703964,"ret":-0.013403},"2025-01-13":{"o":21027.5,"h":21037.0,"l":20694.0,"c":20947.25,"v":617059,"ret":-0.003271},"2025-01-14":{"o":21020.0,"h":21143.75,"l":20773.5,"c":20919.5,"v":676188,"ret":-0.001325},"2025-01-15":{"o":20977.0,"h":21452.75,"l":20909.0,"c":21400.25,"v":551806,"ret":0.022981},"2025-01-16":{"o":21389.0,"h":21567.25,"l":21172.25,"c":21249.75,"v":598631,"ret":-0.007033},"2025-01-17":{"o":21227.5,"h":21682.5,"l":21209.25,"c":21594.75,"v":594110,"ret":0.016235},"2025-01-21":{"o":21600.0,"h":21783.5,"l":21377.75,"c":21709.5,"v":662316,"ret":0.005314},"2025-01-22":{"o":21809.25,"h":22093.5,"l":21768.25,"c":22000.5,"v":508606,"ret":0.013404},"2025-01-23":{"o":21981.75,"h":22050.5,"l":21855.5,"c":22038.25,"v":476286,"ret":0.001716},"2025-01-24":{"o":22018.5,"h":22078.25,"l":21844.0,"c":21911.25,"v":522901,"ret":-0.005763},"2025-01-27":{"o":21771.0,"h":21771.0,"l":20763.75,"c":21258.5,"v":1056136,"ret":-0.029791},"2025-01-28":{"o":21343.25,"h":21626.0,"l":21159.5,"c":21581.75,"v":663336,"ret":0.015206},"2025-01-29":{"o":21559.0,"h":21697.0,"l":21367.0,"c":21523.25,"v":629631,"ret":-0.002711},"2025-01-30":{"o":21547.75,"h":21748.75,"l":21419.5,"c":21624.75,"v":618073,"ret":0.004716},"2025-01-31":{"o":21680.0,"h":21966.0,"l":21533.75,"c":21589.25,"v":655811,"ret":-0.001642},"2025-02-03":{"o":21200.0,"h":21579.75,"l":20943.0,"c":21405.0,"v":728140,"ret":-0.008534},"2025-02-04":{"o":21592.0,"h":21694.0,"l":21242.5,"c":21670.25,"v":497143,"ret":0.012392},"2025-02-05":{"o":21562.0,"h":21795.0,"l":21429.75,"c":21763.0,"v":497655,"ret":0.00428},"2025-02-06":{"o":21764.5,"h":21882.25,"l":21705.75,"c":21871.75,"v":438729,"ret":0.004997},"2025-02-07":{"o":21817.75,"h":21968.0,"l":21552.75,"c":21590.75,"v":598869,"ret":-0.012848},"2025-02-10":{"o":21463.25,"h":21894.0,"l":21418.0,"c":21846.5,"v":391625,"ret":0.011845},"2025-02-11":{"o":21832.0,"h":21871.5,"l":21669.5,"c":21786.75,"v":423200,"ret":-0.002735},"2025-02-12":{"o":21794.25,"h":21862.5,"l":21510.75,"c":21804.75,"v":545408,"ret":0.000826},"2025-02-13":{"o":21861.25,"h":22124.0,"l":21753.0,"c":22113.25,"v":536739,"ret":0.014148},"2025-02-14":{"o":22071.0,"h":22225.0,"l":22042.5,"c":22196.25,"v":433212,"ret":0.003753},"2025-02-18":{"o":22235.75,"h":22319.75,"l":22102.75,"c":22232.25,"v":567203,"ret":0.001622},"2025-02-19":{"o":22224.5,"h":22299.75,"l":22118.0,"c":22250.5,"v":496442,"ret":0.000821},"2025-02-20":{"o":22213.0,"h":22235.5,"l":21951.0,"c":22141.75,"v":563585,"ret":-0.004888},"2025-02-21":{"o":22136.0,"h":22245.5,"l":21652.75,"c":21679.25,"v":708349,"ret":-0.020888},"2025-02-24":{"o":21700.75,"h":21813.0,"l":21407.5,"c":21420.25,"v":670634,"ret":-0.011947},"2025-02-25":{"o":21442.5,"h":21453.75,"l":20990.0,"c":21149.0,"v":805678,"ret":-0.012663},"2025-02-26":{"o":21230.5,"h":21409.25,"l":21055.0,"c":21187.0,"v":646236,"ret":0.001797},"2025-02-27":{"o":21249.0,"h":21386.5,"l":20583.25,"c":20605.75,"v":854180,"ret":-0.027434},"2025-02-28":{"o":20649.5,"h":20944.25,"l":20460.5,"c":20919.5,"v":845890,"ret":0.015226},"2025-03-03":{"o":21005.25,"h":21121.0,"l":20316.75,"c":20468.25,"v":833041,"ret":-0.021571},"2025-03-04":{"o":20527.0,"h":20732.5,"l":20075.25,"c":20399.0,"v":958071,"ret":-0.003383},"2025-03-05":{"o":20555.0,"h":20725.0,"l":20215.0,"c":20665.0,"v":783638,"ret":0.01304},"2025-03-06":{"o":20605.25,"h":20647.5,"l":20003.0,"c":20089.25,"v":763150,"ret":-0.027861},"2025-03-07":{"o":20214.5,"h":20286.25,"l":19765.5,"c":20229.75,"v":763257,"ret":0.006994},"2025-03-10":{"o":20147.0,"h":20156.5,"l":19272.25,"c":19452.75,"v":798366,"ret":-0.038409},"2025-03-11":{"o":19440.0,"h":19686.75,"l":19139.25,"c":19399.0,"v":857876,"ret":-0.002763},"2025-03-12":{"o":19412.75,"h":19788.75,"l":19387.0,"c":19618.5,"v":702688,"ret":0.011315},"2025-03-13":{"o":19572.0,"h":19694.0,"l":19170.0,"c":19249.0,"v":761160,"ret":-0.018834},"2025-03-14":{"o":19312.75,"h":19742.5,"l":19296.75,"c":19712.0,"v":742663,"ret":0.024053},"2025-03-17":{"o":19668.25,"h":19959.25,"l":19550.5,"c":19831.75,"v":584953,"ret":0.006075},"2025-03-18":{"o":19821.0,"h":19858.0,"l":19397.75,"c":19496.75,"v":360195,"ret":-0.016892},"2025-03-19":{"o":19496.75,"h":19935.0,"l":19455.5,"c":19746.75,"v":210518,"ret":0.012823},"2025-03-20":{"o":19746.75,"h":19898.75,"l":19530.25,"c":19678.5,"v":116159,"ret":-0.003456},"2025-03-21":{"o":19690.75,"h":19728.75,"l":19408.0,"c":19450.81,"v":605235,"ret":-0.01157},"2025-03-24":{"o":20050.5,"h":20409.5,"l":20050.5,"c":20374.25,"v":555043,"ret":0.047476},"2025-03-25":{"o":20353.0,"h":20524.75,"l":20293.0,"c":20488.5,"v":470886,"ret":0.005608},"2025-03-26":{"o":20511.5,"h":20536.75,"l":20045.0,"c":20116.5,"v":620685,"ret":-0.018157},"2025-03-27":{"o":20046.0,"h":20199.5,"l":19937.25,"c":19990.25,"v":634738,"ret":-0.006276},"2025-03-28":{"o":19995.25,"h":20011.75,"l":19357.5,"c":19457.0,"v":696397,"ret":-0.026676},"2025-03-31":{"o":19319.75,"h":19489.75,"l":18976.75,"c":19439.5,"v":842547,"ret":-0.000899},"2025-04-01":{"o":19411.25,"h":19644.0,"l":19261.25,"c":19604.5,"v":790964,"ret":0.008488},"2025-04-02":{"o":19600.5,"h":20044.25,"l":19076.75,"c":19758.0,"v":835319,"ret":0.00783},"2025-04-03":{"o":19020.0,"h":19177.0,"l":18614.0,"c":18675.5,"v":893793,"ret":-0.054788},"2025-04-04":{"o":18660.0,"h":18713.0,"l":17387.5,"c":17539.0,"v":1199851,"ret":-0.060855},"2025-04-07":{"o":17100.0,"h":18361.5,"l":16460.0,"c":17563.25,"v":1140389,"ret":0.001383},"2025-04-08":{"o":17665.0,"h":18357.25,"l":16973.5,"c":17243.75,"v":956641,"ret":-0.018191},"2025-04-09":{"o":17220.25,"h":19386.75,"l":16735.0,"c":19288.75,"v":1086917,"ret":0.118594},"2025-04-10":{"o":19266.75,"h":19383.5,"l":17919.0,"c":18484.5,"v":975104,"ret":-0.041695},"2025-04-11":{"o":18464.75,"h":18873.5,"l":18067.0,"c":18807.5,"v":667630,"ret":0.017474},"2025-04-14":{"o":19225.0,"h":19256.0,"l":18737.5,"c":18934.75,"v":570510,"ret":0.006766},"2025-04-15":{"o":18902.5,"h":19144.75,"l":18809.0,"c":18960.25,"v":525790,"ret":0.001347},"2025-04-16":{"o":18790.0,"h":18861.25,"l":18116.25,"c":18385.25,"v":683175,"ret":-0.030327},"2025-04-17":{"o":18391.25,"h":18652.75,"l":18261.5,"c":18380.75,"v":629368,"ret":-0.000245},"2025-04-21":{"o":18306.25,"h":18383.5,"l":17700.0,"c":17922.25,"v":484750,"ret":-0.024945},"2025-04-22":{"o":17914.0,"h":18514.0,"l":17863.75,"c":18385.0,"v":619146,"ret":0.02582},"2025-04-23":{"o":18646.0,"h":19165.5,"l":18623.75,"c":18804.0,"v":733977,"ret":0.02279},"2025-04-24":{"o":18826.5,"h":19418.0,"l":18594.75,"c":19322.0,"v":599457,"ret":0.027547},"2025-04-25":{"o":19405.0,"h":19589.0,"l":19216.25,"c":19535.25,"v":587589,"ret":0.011037},"2025-04-28":{"o":19524.5,"h":19623.0,"l":19257.25,"c":19528.0,"v":514474,"ret":-0.000371},"2025-04-29":{"o":19478.25,"h":19688.5,"l":19378.0,"c":19642.0,"v":565539,"ret":0.005838},"2025-04-30":{"o":19599.75,"h":19880.0,"l":19103.75,"c":19658.5,"v":713642,"ret":0.00084},"2025-05-01":{"o":19834.0,"h":20125.75,"l":19757.25,"c":19870.75,"v":588901,"ret":0.010797},"2025-05-02":{"o":19782.5,"h":20276.75,"l":19749.5,"c":20195.25,"v":517806,"ret":0.016331},"2025-05-05":{"o":20181.5,"h":20201.75,"l":19966.0,"c":20055.5,"v":418875,"ret":-0.00692},"2025-05-06":{"o":20014.25,"h":20036.75,"l":19739.0,"c":19876.5,"v":514526,"ret":-0.008925},"2025-05-07":{"o":19809.0,"h":20133.75,"l":19678.75,"c":19961.0,"v":597360,"ret":0.004251},"2025-05-08":{"o":19934.5,"h":20337.25,"l":19910.75,"c":20148.0,"v":567597,"ret":0.009368},"2025-05-09":{"o":20157.0,"h":20288.75,"l":20058.0,"c":20136.75,"v":453686,"ret":-0.000558},"2025-05-12":{"o":20398.5,"h":20996.0,"l":20376.75,"c":20948.75,"v":638564,"ret":0.040324},"2025-05-13":{"o":20954.75,"h":21346.5,"l":20818.0,"c":21278.0,"v":526706,"ret":0.015717},"2025-05-14":{"o":21250.0,"h":21419.5,"l":21238.25,"c":21392.5,"v":513593,"ret":0.005381},"2025-05-15":{"o":21379.75,"h":21529.75,"l":21192.0,"c":21400.25,"v":542990,"ret":0.000362},"2025-05-16":{"o":21396.0,"h":21512.0,"l":21320.25,"c":21506.0,"v":419242,"ret":0.004942},"2025-05-19":{"o":21310.75,"h":21544.5,"l":21112.5,"c":21527.0,"v":520282,"ret":0.000976},"2025-05-20":{"o":21513.0,"h":21562.25,"l":21298.0,"c":21447.25,"v":437865,"ret":-0.003705},"2025-05-21":{"o":21414.75,"h":21558.5,"l":21072.75,"c":21156.75,"v":605668,"ret":-0.013545},"2025-05-22":{"o":21145.0,"h":21337.5,"l":21040.0,"c":21178.25,"v":512634,"ret":0.001016},"2025-05-23":{"o":21223.75,"h":21236.0,"l":20727.0,"c":20975.0,"v":528055,"ret":-0.009597},"2025-05-27":{"o":20978.0,"h":21488.5,"l":20954.25,"c":21460.5,"v":531358,"ret":0.023147},"2025-05-28":{"o":21480.0,"h":21567.5,"l":21321.25,"c":21379.75,"v":421653,"ret":-0.003763},"2025-05-29":{"o":21513.0,"h":21858.75,"l":21301.0,"c":21408.5,"v":563888,"ret":0.001345},"2025-05-30":{"o":21371.25,"h":21433.5,"l":21071.5,"c":21376.75,"v":551092,"ret":-0.001483},"2025-06-02":{"o":21303.75,"h":21576.25,"l":21163.0,"c":21534.5,"v":434593,"ret":0.00738},"2025-06-03":{"o":21555.0,"h":21759.75,"l":21399.25,"c":21706.0,"v":427859,"ret":0.007964},"2025-06-04":{"o":21688.25,"h":21803.0,"l":21641.0,"c":21766.5,"v":403012,"ret":0.002787},"2025-06-05":{"o":21744.75,"h":21935.0,"l":21503.5,"c":21582.25,"v":0,"ret":-0.008465},"2025-06-06":{"o":21471.0,"h":21873.5,"l":21471.0,"c":21789.5,"v":466591,"ret":0.009603},"2025-06-09":{"o":21799.25,"h":21890.75,"l":21716.0,"c":21821.5,"v":354827,"ret":0.001469},"2025-06-10":{"o":21824.0,"h":21992.25,"l":21732.0,"c":21962.5,"v":439539,"ret":0.006462},"2025-06-11":{"o":21945.75,"h":22106.0,"l":21790.75,"c":21887.5,"v":523556,"ret":-0.003415},"2025-06-12":{"o":21871.0,"h":21977.25,"l":21713.25,"c":21932.5,"v":397839,"ret":0.002056},"2025-06-13":{"o":21909.0,"h":21915.75,"l":21471.0,"c":21644.25,"v":556189,"ret":-0.013143},"2025-06-16":{"o":21554.0,"h":21999.5,"l":21501.75,"c":21941.5,"v":336301,"ret":0.013733},"2025-06-17":{"o":21950.0,"h":21952.0,"l":21685.0,"c":21730.5,"v":173026,"ret":-0.009616},"2025-06-18":{"o":21705.0,"h":21872.5,"l":21640.5,"c":21720.25,"v":0,"ret":-0.000472},"2025-06-20":{"o":21731.0,"h":21896.5,"l":21435.5,"c":21889.89,"v":649884,"ret":0.00781},"2025-06-23":{"o":21648.25,"h":22093.0,"l":21566.75,"c":22073.5,"v":549766,"ret":0.008388},"2025-06-24":{"o":22079.0,"h":22448.25,"l":22065.75,"c":22412.75,"v":447975,"ret":0.015369},"2025-06-25":{"o":22412.0,"h":22548.25,"l":22384.5,"c":22461.0,"v":397611,"ret":0.002153},"2025-06-26":{"o":22461.25,"h":22694.0,"l":22437.75,"c":22669.25,"v":422397,"ret":0.009272},"2025-06-27":{"o":22676.25,"h":22825.5,"l":22600.0,"c":22751.5,"v":487835,"ret":0.003628},"2025-06-30":{"o":22751.5,"h":22934.75,"l":22751.5,"c":22893.25,"v":434250,"ret":0.00623},"2025-07-01":{"o":22867.5,"h":22914.75,"l":22594.5,"c":22692.75,"v":495079,"ret":-0.008758},"2025-07-02":{"o":22694.5,"h":22858.75,"l":22582.0,"c":22843.0,"v":408882,"ret":0.006621},"2025-07-03":{"o":22845.0,"h":23102.5,"l":22827.0,"c":23062.5,"v":0,"ret":0.009609},"2025-07-04":{"o":23059.25,"h":23062.5,"l":22882.0,"c":22906.75,"v":0,"ret":-0.006753},"2025-07-07":{"o":22970.0,"h":23028.5,"l":22779.75,"c":22884.75,"v":537930,"ret":-0.00096},"2025-07-08":{"o":22837.75,"h":22972.75,"l":22808.5,"c":22896.75,"v":420913,"ret":0.000524},"2025-07-09":{"o":22906.5,"h":23112.0,"l":22843.5,"c":23052.75,"v":450523,"ret":0.006813},"2025-07-10":{"o":23041.0,"h":23090.0,"l":22901.25,"c":23013.25,"v":391782,"ret":-0.001713},"2025-07-11":{"o":23011.75,"h":23048.75,"l":22831.5,"c":22959.0,"v":461057,"ret":-0.002357},"2025-07-14":{"o":22860.75,"h":23066.5,"l":22803.0,"c":23035.5,"v":414465,"ret":0.003332},"2025-07-15":{"o":23034.25,"h":23222.75,"l":22996.0,"c":23056.75,"v":524056,"ret":0.000922},"2025-07-16":{"o":23018.75,"h":23100.0,"l":22835.5,"c":23076.5,"v":548602,"ret":0.000857},"2025-07-17":{"o":23065.5,"h":23279.75,"l":23017.0,"c":23251.0,"v":445290,"ret":0.007562},"2025-07-18":{"o":23261.25,"h":23320.75,"l":23169.5,"c":23224.25,"v":450704,"ret":-0.00115},"2025-07-21":{"o":23232.5,"h":23424.75,"l":23203.75,"c":23342.0,"v":398833,"ret":0.00507},"2025-07-22":{"o":23339.5,"h":23367.0,"l":23108.0,"c":23226.25,"v":537829,"ret":-0.004959},"2025-07-23":{"o":23191.25,"h":23418.0,"l":23146.75,"c":23310.75,"v":512963,"ret":0.003638},"2025-07-24":{"o":23402.25,"h":23424.5,"l":23298.25,"c":23377.5,"v":435559,"ret":0.002863},"2025-07-25":{"o":23391.5,"h":23476.0,"l":23330.75,"c":23421.25,"v":395469,"ret":0.001871},"2025-07-28":{"o":23520.0,"h":23585.25,"l":23436.75,"c":23491.25,"v":424393,"ret":0.002989},"2025-07-29":{"o":23504.25,"h":23652.5,"l":23421.25,"c":23452.0,"v":538169,"ret":-0.001671},"2025-07-30":{"o":23452.0,"h":23689.0,"l":23356.5,"c":23480.5,"v":538732,"ret":0.001215},"2025-07-31":{"o":23705.0,"h":23845.0,"l":23290.5,"c":23365.0,"v":739642,"ret":-0.004919},"2025-08-01":{"o":23308.5,"h":23347.5,"l":22775.0,"c":22883.75,"v":803558,"ret":-0.020597},"2025-08-04":{"o":22850.0,"h":23352.5,"l":22821.75,"c":23296.5,"v":472671,"ret":0.018037},"2025-08-05":{"o":23354.0,"h":23404.25,"l":23084.5,"c":23132.0,"v":542676,"ret":-0.007061},"2025-08-06":{"o":23091.75,"h":23445.25,"l":23045.5,"c":23422.75,"v":527514,"ret":0.012569},"2025-08-07":{"o":23418.5,"h":23671.0,"l":23329.0,"c":23496.25,"v":561716,"ret":0.003138},"2025-08-08":{"o":23518.25,"h":23767.75,"l":23503.0,"c":23713.75,"v":454190,"ret":0.009257},"2025-08-11":{"o":23764.0,"h":23804.5,"l":23587.5,"c":23637.5,"v":443981,"ret":-0.003215},"2025-08-12":{"o":23635.0,"h":23953.5,"l":23596.0,"c":23938.0,"v":488577,"ret":0.012713},"2025-08-13":{"o":23945.0,"h":24068.5,"l":23886.0,"c":23946.5,"v":453506,"ret":0.000355},"2025-08-14":{"o":23927.75,"h":24007.75,"l":23793.25,"c":23930.5,"v":492051,"ret":-0.000668},"2025-08-15":{"o":23888.75,"h":23963.0,"l":23734.5,"c":23804.0,"v":441888,"ret":-0.005286},"2025-08-18":{"o":23795.0,"h":23881.75,"l":23719.0,"c":23797.75,"v":399622,"ret":-0.000263},"2025-08-19":{"o":23800.75,"h":23838.0,"l":23426.0,"c":23469.5,"v":557582,"ret":-0.013793},"2025-08-20":{"o":23461.0,"h":23485.5,"l":23035.0,"c":23324.0,"v":713574,"ret":-0.0062},"2025-08-21":{"o":23323.0,"h":23369.25,"l":23119.0,"c":23219.75,"v":525924,"ret":-0.00447},"2025-08-22":{"o":23225.25,"h":23650.0,"l":23076.75,"c":23569.75,"v":490867,"ret":0.015073},"2025-08-25":{"o":23602.0,"h":23616.25,"l":23443.25,"c":23498.25,"v":399485,"ret":-0.003034},"2025-08-26":{"o":23505.75,"h":23611.0,"l":23371.5,"c":23591.5,"v":443746,"ret":0.003968},"2025-08-27":{"o":23604.0,"h":23689.0,"l":23434.75,"c":23628.75,"v":436560,"ret":0.001579},"2025-08-28":{"o":23542.25,"h":23803.75,"l":23487.5,"c":23769.0,"v":486265,"ret":0.005936},"2025-08-29":{"o":23760.5,"h":23762.0,"l":23397.5,"c":23461.75,"v":0,"ret":-0.012927},"2025-09-02":{"o":23479.0,"h":23552.5,"l":23025.25,"c":23275.0,"v":744115,"ret":-0.00796},"2025-09-03":{"o":23382.0,"h":23525.25,"l":23298.25,"c":23448.75,"v":563651,"ret":0.007465},"2025-09-04":{"o":23456.75,"h":23708.75,"l":23410.0,"c":23668.0,"v":484986,"ret":0.00935},"2025-09-05":{"o":23700.0,"h":23902.0,"l":23505.0,"c":23684.0,"v":674088,"ret":0.000676},"2025-09-08":{"o":23673.5,"h":23888.0,"l":23650.25,"c":23799.75,"v":457632,"ret":0.004887},"2025-09-09":{"o":23799.0,"h":23921.25,"l":23726.0,"c":23874.0,"v":473187,"ret":0.00312},"2025-09-10":{"o":23898.5,"h":24044.25,"l":23785.0,"c":23877.75,"v":521709,"ret":0.000157},"2025-09-11":{"o":23853.75,"h":24046.0,"l":23838.0,"c":24017.75,"v":445071,"ret":0.005863},"2025-09-12":{"o":24028.25,"h":24159.0,"l":23969.0,"c":24113.25,"v":425565,"ret":0.003976},"2025-09-15":{"o":24115.25,"h":24315.5,"l":24076.0,"c":24309.25,"v":366064,"ret":0.008128},"2025-09-16":{"o":24290.0,"h":24403.5,"l":24258.25,"c":24284.0,"v":211077,"ret":-0.001039},"2025-09-17":{"o":24290.0,"h":24312.5,"l":24003.75,"c":24222.5,"v":171533,"ret":-0.002533},"2025-09-18":{"o":24250.25,"h":24569.5,"l":24248.5,"c":24460.25,"v":106669,"ret":0.009815},"2025-09-19":{"o":24468.25,"h":24575.0,"l":24412.5,"c":24568.07,"v":505600,"ret":0.004408},"2025-09-22":{"o":24850.0,"h":25027.25,"l":24748.75,"c":25003.0,"v":481197,"ret":0.017703},"2025-09-23":{"o":24995.0,"h":25026.0,"l":24780.5,"c":24827.25,"v":564182,"ret":-0.007029},"2025-09-24":{"o":24839.5,"h":24913.5,"l":24627.0,"c":24739.25,"v":530441,"ret":-0.003544},"2025-09-25":{"o":24746.0,"h":24793.5,"l":24422.5,"c":24629.25,"v":710112,"ret":-0.004446},"2025-09-26":{"o":24642.5,"h":24747.5,"l":24520.0,"c":24726.75,"v":548790,"ret":0.003959},"2025-09-29":{"o":24726.5,"h":24975.5,"l":24721.75,"c":24837.75,"v":508361,"ret":0.004489},"2025-09-30":{"o":24817.75,"h":24913.75,"l":24722.25,"c":24901.75,"v":513254,"ret":0.002577},"2025-10-01":{"o":24843.0,"h":25036.75,"l":24633.25,"c":25017.5,"v":474674,"ret":0.004648},"2025-10-02":{"o":25009.25,"h":25180.0,"l":24993.75,"c":25110.0,"v":460294,"ret":0.003697},"2025-10-03":{"o":25101.5,"h":25196.5,"l":24923.25,"c":24992.0,"v":490721,"ret":-0.004699},"2025-10-06":{"o":25000.0,"h":25252.75,"l":24995.0,"c":25184.75,"v":414908,"ret":0.007712},"2025-10-07":{"o":25184.5,"h":25275.0,"l":24984.75,"c":25039.25,"v":539431,"ret":-0.005777},"2025-10-08":{"o":25059.75,"h":25364.75,"l":25026.25,"c":25331.0,"v":451309,"ret":0.011652},"2025-10-09":{"o":25351.5,"h":25394.0,"l":25160.75,"c":25289.25,"v":500933,"ret":-0.001648},"2025-10-10":{"o":25287.75,"h":25388.0,"l":24158.5,"c":24397.0,"v":934374,"ret":-0.035282},"2025-10-13":{"o":24542.0,"h":24965.0,"l":24542.0,"c":24922.25,"v":934374,"ret":0.021529},"2025-10-14":{"o":24913.75,"h":25044.25,"l":24421.0,"c":24762.5,"v":729059,"ret":-0.00641},"2025-10-15":{"o":24754.0,"h":25115.0,"l":24663.25,"c":24924.5,"v":637036,"ret":0.006542},"2025-10-16":{"o":24937.0,"h":25179.5,"l":24643.5,"c":24831.25,"v":738759,"ret":-0.003741},"2025-10-17":{"o":24793.75,"h":25055.75,"l":24410.0,"c":24986.5,"v":743681,"ret":0.006252},"2025-10-20":{"o":25065.75,"h":25354.5,"l":24955.75,"c":25305.25,"v":437206,"ret":0.012757},"2025-10-21":{"o":25326.75,"h":25368.0,"l":25203.25,"c":25294.75,"v":441490,"ret":-0.000415},"2025-10-22":{"o":25283.75,"h":25338.25,"l":24804.75,"c":25039.25,"v":695128,"ret":-0.010101},"2025-10-23":{"o":25012.25,"h":25296.0,"l":24937.0,"c":25254.0,"v":527352,"ret":0.008577},"2025-10-24":{"o":25283.25,"h":25570.75,"l":25276.0,"c":25509.25,"v":467727,"ret":0.010107},"2025-10-27":{"o":25723.5,"h":26013.5,"l":25700.0,"c":25963.75,"v":435230,"ret":0.017817},"2025-10-28":{"o":26002.5,"h":26231.5,"l":25943.0,"c":26163.5,"v":452121,"ret":0.007693},"2025-10-29":{"o":26179.75,"h":26379.75,"l":26049.25,"c":26262.5,"v":557797,"ret":0.003784},"2025-10-30":{"o":26154.5,"h":26399.0,"l":25853.0,"c":25882.75,"v":665782,"ret":-0.01446},"2025-10-31":{"o":26150.5,"h":26274.0,"l":25888.75,"c":26004.0,"v":597984,"ret":0.004685},"2025-11-03":{"o":26028.25,"h":26266.0,"l":26012.75,"c":26103.25,"v":0,"ret":0.003817},"2025-11-04":{"o":26104.5,"h":26104.5,"l":25522.75,"c":25575.25,"v":669483,"ret":-0.020227},"2025-11-05":{"o":25545.0,"h":25880.0,"l":25282.0,"c":25746.25,"v":618171,"ret":0.006686},"2025-11-06":{"o":25738.5,"h":25822.25,"l":25197.75,"c":25244.25,"v":754444,"ret":-0.019498},"2025-11-07":{"o":25314.75,"h":25354.75,"l":24709.25,"c":25166.25,"v":765092,"ret":-0.00309},"2025-11-10":{"o":25320.75,"h":25760.5,"l":25269.0,"c":25714.5,"v":626203,"ret":0.021785},"2025-11-11":{"o":25722.25,"h":25768.75,"l":25478.5,"c":25640.75,"v":537967,"ret":-0.002868},"2025-11-12":{"o":25668.0,"h":25830.0,"l":25488.75,"c":25623.75,"v":606259,"ret":-0.000663},"2025-11-13":{"o":25624.0,"h":25721.5,"l":25002.5,"c":25094.75,"v":775125,"ret":-0.020645},"2025-11-14":{"o":25095.25,"h":25293.25,"l":24626.0,"c":25094.0,"v":862322,"ret":-3e-05},"2025-11-17":{"o":25142.25,"h":25361.25,"l":24731.75,"c":24879.0,"v":738978,"ret":-0.008568},"2025-11-18":{"o":24905.5,"h":24959.5,"l":24376.25,"c":24595.75,"v":871074,"ret":-0.011385},"2025-11-19":{"o":24551.0,"h":24988.0,"l":24445.0,"c":24721.75,"v":770449,"ret":0.005123},"2025-11-20":{"o":24966.75,"h":25310.0,"l":24073.25,"c":24131.5,"v":995836,"ret":-0.023876},"2025-11-21":{"o":24110.0,"h":24596.25,"l":23904.5,"c":24305.5,"v":918728,"ret":0.00721},"2025-11-24":{"o":24455.75,"h":24993.5,"l":24361.75,"c":24948.25,"v":604148,"ret":0.026445},"2025-11-25":{"o":24966.25,"h":25135.25,"l":24602.0,"c":25085.5,"v":629575,"ret":0.005501},"2025-11-26":{"o":25071.25,"h":25376.0,"l":25061.25,"c":25302.25,"v":522196,"ret":0.00864},"2025-11-28":{"o":25313.0,"h":25499.75,"l":25285.75,"c":25482.0,"v":199445,"ret":0.007104},"2025-12-01":{"o":25482.5,"h":25546.0,"l":25193.25,"c":25391.25,"v":574734,"ret":-0.003561},"2025-12-02":{"o":25411.5,"h":25670.0,"l":25324.75,"c":25606.0,"v":561951,"ret":0.008458},"2025-12-03":{"o":25611.0,"h":25685.25,"l":25421.5,"c":25657.5,"v":494194,"ret":0.002011},"2025-12-04":{"o":25650.25,"h":25732.5,"l":25488.75,"c":25622.75,"v":509526,"ret":-0.001354},"2025-12-05":{"o":25629.75,"h":25868.0,"l":25579.75,"c":25732.0,"v":498264,"ret":0.004264},"2025-12-08":{"o":25750.0,"h":25860.75,"l":25564.75,"c":25664.0,"v":473150,"ret":-0.002643},"2025-12-09":{"o":25713.0,"h":25735.75,"l":25560.0,"c":25699.75,"v":407387,"ret":0.001393},"2025-12-10":{"o":25680.0,"h":25870.75,"l":25528.75,"c":25798.0,"v":556710,"ret":0.003823},"2025-12-11":{"o":25769.5,"h":25861.5,"l":25383.0,"c":25713.5,"v":637723,"ret":-0.003275},"2025-12-12":{"o":25701.0,"h":25733.25,"l":25118.0,"c":25213.5,"v":760749,"ret":-0.019445},"2025-12-15":{"o":25223.5,"h":25410.0,"l":25033.25,"c":25093.25,"v":448073,"ret":-0.004769},"2025-12-16":{"o":25101.25,"h":25202.5,"l":24828.0,"c":25139.0,"v":247876,"ret":0.001823},"2025-12-17":{"o":25091.75,"h":25266.0,"l":24654.5,"c":24668.75,"v":139991,"ret":-0.018706},"2025-12-18":{"o":24744.0,"h":25178.0,"l":24675.5,"c":25028.25,"v":111598,"ret":0.014573},"2025-12-19":{"o":25002.5,"h":25160.0,"l":24977.5,"c":25132.79,"v":502611,"ret":0.004177},"2025-12-22":{"o":25635.25,"h":25794.75,"l":25628.0,"c":25692.25,"v":367322,"ret":0.02226},"2025-12-23":{"o":25701.0,"h":25822.5,"l":25608.25,"c":25812.25,"v":336346,"ret":0.004671},"2025-12-24":{"o":25815.75,"h":25892.0,"l":25777.5,"c":25880.5,"v":163037,"ret":0.002644},"2025-12-26":{"o":25868.0,"h":25935.25,"l":25834.25,"c":25863.25,"v":240485,"ret":-0.000667},"2025-12-29":{"o":25863.25,"h":25893.75,"l":25648.0,"c":25739.75,"v":347055,"ret":-0.004775},"2025-12-30":{"o":25740.0,"h":25793.75,"l":25668.25,"c":25675.25,"v":300558,"ret":-0.002506},"2025-12-31":{"o":25683.25,"h":25716.75,"l":25429.0,"c":25456.75,"v":329352,"ret":-0.00851},"2026-01-02":{"o":25478.5,"h":25803.75,"l":25265.25,"c":25385.25,"v":554838,"ret":-0.002809},"2026-01-05":{"o":25431.75,"h":25708.0,"l":25406.5,"c":25577.75,"v":461305,"ret":0.007583},"2026-01-06":{"o":25583.0,"h":25837.75,"l":25527.5,"c":25822.0,"v":445573,"ret":0.009549},"2026-01-07":{"o":25831.25,"h":25996.25,"l":25727.0,"c":25838.75,"v":477861,"ret":0.000649},"2026-01-08":{"o":25838.75,"h":25849.75,"l":25569.0,"c":25687.5,"v":510805,"ret":-0.005854},"2026-01-09":{"o":25725.0,"h":25985.5,"l":25615.5,"c":25938.25,"v":509669,"ret":0.009762},"2026-01-12":{"o":25949.0,"h":26020.5,"l":25632.75,"c":25956.75,"v":452996,"ret":0.000713},"2026-01-13":{"o":25953.5,"h":26045.5,"l":25803.25,"c":25906.0,"v":560438,"ret":-0.001955},"2026-01-14":{"o":25900.75,"h":25925.75,"l":25420.75,"c":25631.0,"v":647871,"ret":-0.010615},"2026-01-15":{"o":25593.0,"h":25952.75,"l":25562.5,"c":25705.75,"v":591058,"ret":0.002916},"2026-01-16":{"o":25720.5,"h":25891.0,"l":25591.5,"c":25689.0,"v":490573,"ret":-0.000652},"2026-01-20":{"o":25471.0,"h":25472.0,"l":25095.25,"c":25129.25,"v":864568,"ret":-0.021789},"2026-01-21":{"o":25149.5,"h":25653.5,"l":25025.0,"c":25471.0,"v":810753,"ret":0.0136},"2026-01-22":{"o":25529.5,"h":25739.75,"l":25483.75,"c":25658.25,"v":533607,"ret":0.007351},"2026-01-23":{"o":25605.0,"h":25845.75,"l":25540.25,"c":25738.25,"v":504901,"ret":0.003118},"2026-01-26":{"o":25585.5,"h":25936.5,"l":25365.25,"c":25848.5,"v":450290,"ret":0.004284},"2026-01-27":{"o":25861.25,"h":26118.0,"l":25838.5,"c":26073.0,"v":429460,"ret":0.008685},"2026-01-28":{"o":26111.25,"h":26349.0,"l":25993.25,"c":26156.25,"v":511937,"ret":0.003193},"2026-01-29":{"o":26282.5,"h":26296.0,"l":25536.0,"c":25999.25,"v":699097,"ret":-0.006002},"2026-01-30":{"o":25998.5,"h":26020.0,"l":25568.75,"c":25670.0,"v":712197,"ret":-0.012664},"2026-02-02":{"o":25530.0,"h":25949.5,"l":25180.25,"c":25850.0,"v":578865,"ret":0.007012},"2026-02-03":{"o":25876.5,"h":26027.75,"l":25219.0,"c":25452.0,"v":696150,"ret":-0.015397},"2026-02-04":{"o":25387.5,"h":25514.25,"l":24783.5,"c":24999.25,"v":742646,"ret":-0.017788},"2026-02-05":{"o":25061.75,"h":25169.0,"l":24407.25,"c":24651.0,"v":774469,"ret":-0.01393},"2026-02-06":{"o":24416.0,"h":25222.0,"l":24239.75,"c":25163.25,"v":653956,"ret":0.02078},"2026-02-09":{"o":25153.75,"h":25428.75,"l":24955.5,"c":25354.0,"v":492306,"ret":0.00758},"2026-02-10":{"o":25363.0,"h":25447.25,"l":25198.25,"c":25218.25,"v":477554,"ret":-0.005354},"2026-02-11":{"o":25259.0,"h":25465.25,"l":25058.25,"c":25288.5,"v":531730,"ret":0.002786},"2026-02-12":{"o":25289.0,"h":25419.75,"l":24721.5,"c":24768.0,"v":668338,"ret":-0.020582},"2026-02-13":{"o":24842.25,"h":24995.5,"l":24578.75,"c":24803.25,"v":688226,"ret":0.001423},"2026-02-17":{"o":24789.75,"h":24922.25,"l":24449.25,"c":24767.75,"v":752646,"ret":-0.001431},"2026-02-18":{"o":24773.75,"h":25128.25,"l":24700.75,"c":24956.0,"v":540796,"ret":0.007601},"2026-02-19":{"o":24943.5,"h":25054.0,"l":24749.0,"c":24858.75,"v":515038,"ret":-0.003897},"2026-02-20":{"o":24837.75,"h":25139.5,"l":24678.5,"c":25067.5,"v":615358,"ret":0.008397},"2026-02-23":{"o":25033.75,"h":25059.75,"l":24668.0,"c":24762.75,"v":594568,"ret":-0.012157},"2026-02-24":{"o":24788.0,"h":25078.75,"l":24694.5,"c":25028.75,"v":520239,"ret":0.010742},"2026-02-25":{"o":25016.25,"h":25494.75,"l":24992.0,"c":25382.0,"v":417621,"ret":0.014114},"2026-02-26":{"o":25388.25,"h":25418.25,"l":24861.75,"c":25081.0,"v":605581,"ret":-0.011859},"2026-02-27":{"o":25024.25,"h":25098.75,"l":24782.0,"c":25004.75,"v":561211,"ret":-0.00304},"2026-03-02":{"o":24682.5,"h":25101.0,"l":24477.0,"c":25025.25,"v":627650,"ret":0.00082},"2026-03-03":{"o":25002.75,"h":25011.0,"l":24352.0,"c":24755.75,"v":719421,"ret":-0.010769},"2026-03-04":{"o":24710.75,"h":25217.75,"l":24499.0,"c":25128.25,"v":603596,"ret":0.015047},"2026-03-05":{"o":25156.5,"h":25250.0,"l":24772.5,"c":25049.5,"v":683962,"ret":-0.003134},"2026-03-06":{"o":25019.75,"h":25141.5,"l":24601.0,"c":24670.25,"v":645082,"ret":-0.01514},"2026-03-09":{"o":24435.25,"h":25058.0,"l":24000.0,"c":24991.0,"v":708630,"ret":0.013001},"2026-03-10":{"o":24981.5,"h":25217.5,"l":24830.0,"c":24982.5,"v":564644,"ret":-0.00034},"2026-03-11":{"o":25010.25,"h":25180.0,"l":24873.5,"c":24983.5,"v":476593,"ret":4e-05},"2026-03-12":{"o":24934.5,"h":24949.25,"l":24517.75,"c":24560.0,"v":565145,"ret":-0.016951},"2026-03-13":{"o":24567.0,"h":24805.25,"l":24333.75,"c":24394.25,"v":609146,"ret":-0.006749},"2026-03-16":{"o":24285.0,"h":24816.25,"l":24278.0,"c":24675.75,"v":413547,"ret":0.01154},"2026-03-17":{"o":24668.75,"h":24896.0,"l":24517.0,"c":24795.5,"v":204810,"ret":0.004853},"2026-03-18":{"o":24796.0,"h":24989.0,"l":24350.0,"c":24434.5,"v":126918,"ret":-0.014559},"2026-03-19":{"o":24399.75,"h":24505.25,"l":24115.0,"c":24364.0,"v":69553,"ret":-0.002885},"2026-03-20":{"o":24417.25,"h":24444.0,"l":24108.75,"c":24291.78,"v":611673,"ret":-0.002964},"2026-03-23":{"o":23902.0,"h":24763.0,"l":23772.5,"c":24408.25,"v":683625,"ret":0.004795},"2026-03-24":{"o":24417.25,"h":24550.0,"l":24134.0,"c":24213.75,"v":544209,"ret":-0.007969},"2026-03-25":{"o":24420.0,"h":24539.75,"l":24286.5,"c":24367.75,"v":525449,"ret":0.00636},"2026-03-26":{"o":24373.5,"h":24421.25,"l":23763.25,"c":23794.25,"v":557306,"ret":-0.023535},"2026-03-27":{"o":23824.0,"h":23976.0,"l":23232.5,"c":23328.5,"v":559271,"ret":-0.019574},"2026-03-30":{"o":23189.5,"h":23574.0,"l":23024.5,"c":23139.75,"v":559453,"ret":-0.008091},"2026-03-31":{"o":23119.5,"h":23975.25,"l":22961.5,"c":23915.0,"v":755160,"ret":0.033503},"2026-04-01":{"o":23889.0,"h":24348.25,"l":23880.0,"c":24194.75,"v":579693,"ret":0.011698},"2026-04-02":{"o":24180.0,"h":24266.75,"l":23666.0,"c":24218.0,"v":576893,"ret":0.000961},"2026-04-06":{"o":24093.5,"h":24452.25,"l":23981.5,"c":24358.5,"v":444473,"ret":0.005801},"2026-04-07":{"o":24348.75,"h":24451.5,"l":23941.5,"c":24371.0,"v":575961,"ret":0.000513},"2026-04-08":{"o":24514.0,"h":25257.0,"l":24355.0,"c":25074.25,"v":644388,"ret":0.028856},"2026-04-09":{"o":25037.75,"h":25269.75,"l":24953.0,"c":25251.5,"v":514186,"ret":0.007069},"2026-04-10":{"o":25237.0,"h":25393.0,"l":25193.0,"c":25281.25,"v":430719,"ret":0.001178},"2026-04-13":{"o":24980.0,"h":25599.25,"l":24904.5,"c":25543.5,"v":507117,"ret":0.010373},"2026-04-14":{"o":25575.25,"h":26003.25,"l":25560.0,"c":25996.75,"v":477724,"ret":0.017744},"2026-04-15":{"o":25985.75,"h":26377.5,"l":25933.75,"c":26365.5,"v":521771,"ret":0.014184},"2026-04-16":{"o":26350.0,"h":26564.0,"l":26275.5,"c":26487.25,"v":590117,"ret":0.004618},"2026-04-17":{"o":26460.0,"h":26884.75,"l":26440.0,"c":26825.5,"v":599136,"ret":0.01277},"2026-04-20":{"o":26599.75,"h":26827.75,"l":26535.0,"c":26748.75,"v":502901,"ret":-0.002861},"2026-04-21":{"o":26776.75,"h":26901.75,"l":26551.75,"c":26634.75,"v":610696,"ret":-0.004262},"2026-04-22":{"o":26729.5,"h":27136.0,"l":26727.75,"c":27083.0,"v":512026,"ret":0.01683},"2026-04-23":{"o":27075.0,"h":27155.75,"l":26681.75,"c":26934.0,"v":644095,"ret":-0.005502},"2026-04-24":{"o":26992.0,"h":27462.5,"l":26992.0,"c":27435.0,"v":545525,"ret":0.018601},"2026-04-27":{"o":27403.25,"h":27542.5,"l":27298.5,"c":27440.5,"v":444514,"ret":0.0002},"2026-04-28":{"o":27423.0,"h":27512.0,"l":27009.5,"c":27168.75,"v":603738,"ret":-0.009903},"2026-04-29":{"o":27197.25,"h":27414.0,"l":27094.0,"c":27325.25,"v":516846,"ret":0.00576},"2026-04-30":{"o":27207.0,"h":27622.75,"l":27163.25,"c":27596.0,"v":701348,"ret":0.009908},"2026-05-01":{"o":27631.75,"h":27917.0,"l":27536.25,"c":27835.75,"v":509821,"ret":0.008688},"2026-05-04":{"o":27890.0,"h":27965.75,"l":27613.0,"c":27776.0,"v":576727,"ret":-0.002147},"2026-05-05":{"o":27760.0,"h":28247.0,"l":27731.75,"c":28136.0,"v":458058,"ret":0.012961},"2026-05-06":{"o":28250.0,"h":28800.0,"l":28243.0,"c":28716.75,"v":637911,"ret":0.020641},"2026-05-07":{"o":28662.75,"h":28944.75,"l":28552.0,"c":28682.25,"v":657049,"ret":-0.001201},"2026-05-08":{"o":28582.0,"h":29386.75,"l":28541.0,"c":29332.5,"v":657049,"ret":0.022671},"2026-05-11":{"o":29294.0,"h":29399.75,"l":29225.75,"c":29323.25,"v":103355,"ret":-0.000315}}}
+/* END_MARKET_DATA_PLACEHOLDER */
+</script>
+<script>
+(() => {
+  let _md = {ticker: '', data: {}};
+  try {
+    const raw = document.getElementById('market-data').textContent
+      .replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    _md = JSON.parse(raw);
+  } catch (e) {
+    console.error('No se pudo parsear market-data:', e);
+  }
+  const MARKET = _md.data || {};
+  const TICKER = _md.ticker || '';
+
+  const dateKey = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  };
+  const getDay = (d) => MARKET[dateKey(d)] || null;
+
+  const COLOR_CAP = 0.03; // saturación a |3%| (~2σ del NDX)
+  const colorForReturn = (ret) => {
+    if (ret == null) return null;
+    const intensity = Math.min(Math.abs(ret) / COLOR_CAP, 1.0);
+    const alpha = (0.06 + intensity * 0.30).toFixed(3);
+    return ret >= 0
+      ? `rgba(34, 197, 94, ${alpha})`
+      : `rgba(239, 68, 68, ${alpha})`;
+  };
+  const fmtPct = (ret) => {
+    if (ret == null) return '';
+    const sign = ret > 0 ? '+' : '';
+    return `${sign}${(ret * 100).toFixed(2)}%`;
+  };
+  const fmtNum = (n, dec = 2) =>
+    n == null ? '—' : Number(n).toLocaleString('en-US', {
+      minimumFractionDigits: dec, maximumFractionDigits: dec
+    });
+  const fmtVol = (v) =>
+    v == null || v === 0 ? '—' : Number(v).toLocaleString('en-US');
+
+  const median = (arr) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+  };
+
+  // Para un mes (0-11) devuelve { byYear: [{year, count, median, isCurrent, isPartial}], historical: {count, median} }
+  function monthlyMedians(monthIdx, currentYear) {
+    const byYear = {};
+    const today = TODAY;
+    const todayKey = dateKey(today);
+    for (const [key, d] of Object.entries(MARKET)) {
+      if (d.ret == null) continue;
+      const [y, m] = key.split('-').map(Number);
+      if (m - 1 !== monthIdx) continue;
+      (byYear[y] ||= []).push(d.ret);
+    }
+    const rows = Object.keys(byYear)
+      .map(Number)
+      .sort((a, b) => b - a)
+      .map((y) => {
+        const lastDayInMonth = new Date(y, monthIdx + 1, 0);
+        const monthEnded = lastDayInMonth < today;
+        const isCurrent = y === currentYear && monthIdx === today.getMonth();
+        return {
+          year: y,
+          count: byYear[y].length,
+          median: median(byYear[y]),
+          isCurrent,
+          isPartial: !monthEnded && y === currentYear,
+        };
+      });
+    const priorReturns = [];
+    for (const [key, d] of Object.entries(MARKET)) {
+      if (d.ret == null) continue;
+      const [y, m] = key.split('-').map(Number);
+      if (m - 1 !== monthIdx) continue;
+      if (y === currentYear) continue;
+      priorReturns.push(d.ret);
+    }
+    return {
+      byYear: rows,
+      historical: priorReturns.length
+        ? { count: priorReturns.length, median: median(priorReturns) }
+        : null,
+    };
+  }
+
+  // Rango dinámico: arranca donde empiezan los datos, termina hoy.
+  const _parseISO = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  const RANGE_START = _md.start ? _parseISO(_md.start) : new Date(2021, 0, 1);
+  const RANGE_END   = (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); })();
+  const _now = new Date();
+  const TODAY       = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
+
+  const DOW_SHORT = ['lun','mar','mié','jue','vie','sáb','dom'];
+  const DOW_LONG  = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+  const MONTHS    = ['enero','febrero','marzo','abril','mayo','junio',
+                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  // Lunes = 0, Domingo = 6
+  const dowMon = (d) => (d.getDay() + 6) % 7;
+  const isWeekend = (d) => { const w = d.getDay(); return w === 0 || w === 6; };
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const inRange = (d) => d >= stripTime(RANGE_START) && d <= stripTime(RANGE_END);
+  const stripTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const addMonths = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
+  const addYears = (d, n) => { const x = new Date(d); x.setFullYear(x.getFullYear() + n); return x; };
+
+  const dayOfYear = (d) => {
+    const start = new Date(d.getFullYear(), 0, 0);
+    return Math.floor((d - start) / 86400000);
+  };
+  const isoWeek = (d) => {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
+  };
+
+  let view = 'month';
+  let cursor = new Date(TODAY);
+
+  const main = document.getElementById('main');
+  const label = document.getElementById('currentLabel');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  const todayBtn = document.getElementById('today');
+  const viewsEl = document.getElementById('views');
+  const rangeSub = document.getElementById('rangeSub');
+  if (rangeSub && _md.start && _md.end) {
+    rangeSub.textContent = `TrdAlgo · ${TICKER} · ${_md.start} → ${_md.end}`;
+  }
+
+  viewsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-view]');
+    if (!b) return;
+    view = b.dataset.view;
+    document.querySelectorAll('#views button').forEach(x => x.classList.toggle('active', x === b));
+    render();
+  });
+
+  prevBtn.addEventListener('click', () => { step(-1); });
+  nextBtn.addEventListener('click', () => { step(+1); });
+  todayBtn.addEventListener('click', () => { cursor = new Date(TODAY); render(); });
+
+  function step(dir) {
+    if (view === 'day')   cursor = addDays(cursor, dir);
+    if (view === 'week')  cursor = addDays(cursor, dir * 7);
+    if (view === 'month') cursor = addMonths(cursor, dir);
+    if (view === 'year')  cursor = addYears(cursor, dir);
+    if (cursor < RANGE_START) cursor = new Date(RANGE_START);
+    if (cursor > RANGE_END)   cursor = new Date(RANGE_END);
+    render();
+  }
+
+  function updateNavDisabled() {
+    let prevTarget, nextTarget;
+    if (view === 'day')   { prevTarget = addDays(cursor, -1); nextTarget = addDays(cursor, 1); }
+    if (view === 'week')  { prevTarget = addDays(cursor, -7); nextTarget = addDays(cursor, 7); }
+    if (view === 'month') { prevTarget = addMonths(cursor, -1); nextTarget = addMonths(cursor, 1); }
+    if (view === 'year')  { prevTarget = addYears(cursor, -1); nextTarget = addYears(cursor, 1); }
+    prevBtn.disabled = prevTarget < RANGE_START && cursor.getTime() === stripTime(RANGE_START).getTime();
+    nextBtn.disabled = nextTarget > RANGE_END   && cursor.getTime() === stripTime(RANGE_END).getTime();
+  }
+
+  function render() {
+    main.innerHTML = '';
+    if (view === 'day')   renderDay();
+    if (view === 'week')  renderWeek();
+    if (view === 'month') renderMonth();
+    if (view === 'year')  renderYear();
+    updateLabel();
+    updateNavDisabled();
+  }
+
+  function updateLabel() {
+    if (view === 'day') {
+      label.textContent = `${cursor.getDate()} ${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    } else if (view === 'week') {
+      const start = addDays(cursor, -dowMon(cursor));
+      const end   = addDays(start, 6);
+      label.textContent = `${start.getDate()} ${MONTHS[start.getMonth()].slice(0,3)} – ${end.getDate()} ${MONTHS[end.getMonth()].slice(0,3)} ${end.getFullYear()}`;
+    } else if (view === 'month') {
+      label.textContent = `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    } else {
+      label.textContent = `${cursor.getFullYear()}`;
+    }
+  }
+
+  // ---------- DAY ----------
+  function renderDay() {
+    const wrap = document.createElement('div');
+    wrap.className = 'day';
+    if (isWeekend(cursor)) wrap.classList.add('weekend');
+    if (sameDay(cursor, TODAY)) wrap.classList.add('today');
+
+    wrap.innerHTML = `
+      <div class="dow">${DOW_LONG[dowMon(cursor)]}</div>
+      <div class="num">${cursor.getDate()}</div>
+      <div class="month-year">${MONTHS[cursor.getMonth()]} de ${cursor.getFullYear()}</div>
+      <div class="meta">
+        Día ${dayOfYear(cursor)} del año &nbsp;·&nbsp; Semana ISO ${isoWeek(cursor)}
+        ${isWeekend(cursor) ? '&nbsp;·&nbsp; <span style="color:var(--weekend)">fin de semana</span>' : '&nbsp;·&nbsp; día hábil'}
+      </div>
+    `;
+    main.appendChild(wrap);
+
+    const data = getDay(cursor);
+    if (!data) {
+      const empty = document.createElement('div');
+      empty.className = 'market-empty';
+      empty.textContent = isWeekend(cursor)
+        ? 'Sin datos de mercado (fin de semana).'
+        : 'Sin datos de mercado para este día (festivo, fuera de rango o aún no disponible).';
+      main.appendChild(empty);
+      return;
+    }
+
+    const cls = data.ret == null ? '' : (data.ret >= 0 ? 'up' : 'down');
+    const range = data.h - data.l;
+    const change = data.ret == null ? null : data.c - data.c / (1 + data.ret);
+
+    const panel = document.createElement('div');
+    panel.className = 'market-panel';
+    panel.innerHTML = `
+      <div class="ticker">${TICKER}</div>
+      <div class="ret ${cls}">${data.ret == null ? '—' : fmtPct(data.ret)}</div>
+      <div class="ret-pts">${change == null ? '' : `${change >= 0 ? '+' : ''}${fmtNum(change, 2)} pts  ·  $${fmtNum(Math.abs(change) * 2, 2)} por MNQ`}</div>
+      <div class="ohlc-grid">
+        <div class="ohlc-cell"><div class="label">Open</div><div class="val">${fmtNum(data.o)}</div></div>
+        <div class="ohlc-cell"><div class="label">High</div><div class="val">${fmtNum(data.h)}</div></div>
+        <div class="ohlc-cell"><div class="label">Low</div><div class="val">${fmtNum(data.l)}</div></div>
+        <div class="ohlc-cell"><div class="label">Close</div><div class="val">${fmtNum(data.c)}</div></div>
+      </div>
+      <div class="market-extra">
+        <div class="row"><span>Rango (H−L)</span><span class="val">${fmtNum(range, 2)} pts</span></div>
+        <div class="row"><span>Volumen</span><span class="val">${fmtVol(data.v)}</span></div>
+      </div>
+    `;
+    main.appendChild(panel);
+  }
+
+  // ---------- WEEK ----------
+  function renderWeek() {
+    const start = addDays(cursor, -dowMon(cursor));
+    const grid = document.createElement('div');
+    grid.className = 'week';
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(start, i);
+      const cell = document.createElement('div');
+      cell.className = 'week-day';
+      if (isWeekend(d)) cell.classList.add('weekend');
+      if (sameDay(d, TODAY)) cell.classList.add('today');
+      if (!inRange(d)) cell.classList.add('out-of-range');
+      const data = getDay(d);
+      const bg = data ? colorForReturn(data.ret) : null;
+      const pctCls = data && data.ret != null ? (data.ret >= 0 ? 'up' : 'down') : '';
+      cell.innerHTML = `
+        <div class="dow">${DOW_SHORT[i]}</div>
+        <div class="num">${d.getDate()}</div>
+        <div class="meta">${MONTHS[d.getMonth()].slice(0,3)} ${d.getFullYear()}</div>
+        ${data && data.ret != null ? `<div class="pct ${pctCls}">${fmtPct(data.ret)}</div>` : ''}
+        ${data ? `<div class="close">Close ${fmtNum(data.c)}</div>` : ''}
+      `;
+      if (bg) cell.style.backgroundColor = bg;
+      cell.addEventListener('click', () => {
+        if (!inRange(d)) return;
+        cursor = d; view = 'day';
+        document.querySelectorAll('#views button').forEach(x => x.classList.toggle('active', x.dataset.view === 'day'));
+        render();
+      });
+      grid.appendChild(cell);
+    }
+    main.appendChild(grid);
+  }
+
+  // ---------- MONTH ----------
+  function renderMonth() {
+    const wrap = document.createElement('div');
+    wrap.className = 'month';
+
+    const grid = document.createElement('div');
+    grid.className = 'month-grid';
+
+    DOW_SHORT.forEach((name, i) => {
+      const h = document.createElement('div');
+      h.className = 'dow-header';
+      if (i >= 5) h.classList.add('weekend');
+      h.textContent = name;
+      grid.appendChild(h);
+    });
+
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const offset = dowMon(first);
+    const start = addDays(first, -offset);
+
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(start, i);
+      const cell = document.createElement('div');
+      cell.className = 'day-cell';
+      if (isWeekend(d)) cell.classList.add('weekend');
+      if (d.getMonth() !== cursor.getMonth()) cell.classList.add('other-month');
+      if (sameDay(d, TODAY)) cell.classList.add('today');
+      if (!inRange(d)) cell.classList.add('out-of-range');
+      const data = getDay(d);
+      const bg = data && !isWeekend(d) ? colorForReturn(data.ret) : null;
+      const pctCls = data && data.ret != null ? (data.ret >= 0 ? 'up' : 'down') : '';
+      cell.innerHTML = `
+        <span class="day-num">${d.getDate()}</span>
+        ${data && data.ret != null ? `<span class="day-pct ${pctCls}">${fmtPct(data.ret)}</span>` : ''}
+      `;
+      if (bg) cell.style.backgroundColor = bg;
+      cell.addEventListener('click', () => {
+        if (!inRange(d)) return;
+        cursor = d; view = 'day';
+        document.querySelectorAll('#views button').forEach(x => x.classList.toggle('active', x.dataset.view === 'day'));
+        render();
+      });
+      grid.appendChild(cell);
+    }
+
+    wrap.appendChild(grid);
+
+    const stats = renderMonthStats(cursor.getMonth(), cursor.getFullYear());
+    if (stats) wrap.appendChild(stats);
+
+    main.appendChild(wrap);
+  }
+
+  function renderMonthStats(monthIdx, currentYear) {
+    const { byYear, historical } = monthlyMedians(monthIdx, currentYear);
+    if (!byYear.length) return null;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'month-stats';
+
+    const title = document.createElement('div');
+    title.className = 'stats-title';
+    title.textContent = `Mediana del retorno % diario · ${MONTHS[monthIdx]} · ${TICKER}`;
+    wrap.appendChild(title);
+
+    const table = document.createElement('div');
+    table.className = 'stats-table';
+
+    for (const r of byYear) {
+      const row = document.createElement('div');
+      row.className = 'stats-row' + (r.isCurrent ? ' current' : '');
+      const cls = r.median >= 0 ? 'up' : 'down';
+      row.innerHTML = `
+        <span class="year">${r.year}${r.isPartial ? '<span class="partial-tag">parcial</span>' : ''}</span>
+        <span class="count">${r.count} día${r.count === 1 ? '' : 's'}</span>
+        <span class="val ${cls}">${fmtPct(r.median)}</span>
+      `;
+      table.appendChild(row);
+    }
+
+    if (historical) {
+      const row = document.createElement('div');
+      row.className = 'stats-row historical';
+      const cls = historical.median >= 0 ? 'up' : 'down';
+      row.innerHTML = `
+        <span class="year">Histórico</span>
+        <span class="count">${historical.count} días (años pasados)</span>
+        <span class="val ${cls}">${fmtPct(historical.median)}</span>
+      `;
+      table.appendChild(row);
+    }
+
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // ---------- YEAR ----------
+  function renderYear() {
+    const wrap = document.createElement('div');
+    wrap.className = 'year';
+    for (let m = 0; m < 12; m++) {
+      const mini = document.createElement('div');
+      mini.className = 'mini-month';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = MONTHS[m];
+      mini.appendChild(title);
+
+      const grid = document.createElement('div');
+      grid.className = 'mini-grid';
+      DOW_SHORT.forEach((name, i) => {
+        const h = document.createElement('div');
+        h.className = 'mh';
+        if (i >= 5) h.classList.add('weekend');
+        h.textContent = name[0].toUpperCase();
+        grid.appendChild(h);
+      });
+
+      const first = new Date(cursor.getFullYear(), m, 1);
+      const offset = dowMon(first);
+      const start = addDays(first, -offset);
+      for (let i = 0; i < 42; i++) {
+        const d = addDays(start, i);
+        const cell = document.createElement('div');
+        cell.className = 'md';
+        if (d.getMonth() !== m) cell.classList.add('other');
+        else {
+          if (isWeekend(d)) cell.classList.add('weekend');
+          if (sameDay(d, TODAY)) cell.classList.add('today');
+          if (!inRange(d)) cell.classList.add('out-of-range');
+          const data = getDay(d);
+          const bg = data && !isWeekend(d) && !sameDay(d, TODAY) ? colorForReturn(data.ret) : null;
+          if (bg) cell.style.backgroundColor = bg;
+          cell.addEventListener('click', () => {
+            if (!inRange(d)) return;
+            cursor = d; view = 'day';
+            document.querySelectorAll('#views button').forEach(x => x.classList.toggle('active', x.dataset.view === 'day'));
+            render();
+          });
+        }
+        cell.textContent = d.getDate();
+        grid.appendChild(cell);
+      }
+      mini.appendChild(grid);
+      wrap.appendChild(mini);
+    }
+    main.appendChild(wrap);
+  }
+
+  render();
+
+  // ============================================================
+  //  SCREENER MENSUAL
+  // ============================================================
+  const stdDev = (arr) => {
+    if (arr.length < 2) return 0;
+    const m = arr.reduce((s, x) => s + x, 0) / arr.length;
+    const v = arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1);
+    return Math.sqrt(v);
+  };
+
+  function buildMonthlyAggregates() {
+    const byKey = {};
+    for (const [k, d] of Object.entries(MARKET)) {
+      if (d.ret == null) continue;
+      const ym = k.substring(0, 7);
+      (byKey[ym] ||= []).push(d);
+    }
+    return Object.keys(byKey).map((ym) => {
+      const days = byKey[ym];
+      const [y, m] = ym.split('-').map(Number);
+      const rets = days.map((d) => d.ret);
+      const totalRet = rets.reduce((p, r) => p * (1 + r), 1) - 1;
+      return {
+        key: ym,
+        year: y,
+        month: m,
+        monthName: MONTHS[m - 1],
+        days: days.length,
+        totalReturn: totalRet,
+        median: median(rets),
+        std: stdDev(rets),
+        bestDay: Math.max(...rets),
+        worstDay: Math.min(...rets),
+        volume: days.reduce((s, d) => s + (d.v || 0), 0),
+      };
+    });
+  }
+
+  const ALL_AGGREGATES = buildMonthlyAggregates();
+  const ALL_YEARS = [...new Set(ALL_AGGREGATES.map((r) => r.year))].sort((a, b) => b - a);
+  const ALL_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const MONTH_SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  const screenerState = {
+    years: new Set(ALL_YEARS),
+    months: new Set(ALL_MONTHS),
+    retMin: null, retMax: null,
+    medMin: null, medMax: null,
+    sortCol: 'totalReturn',
+    sortDir: 'desc',
+  };
+
+  const fmtPctSigned = (x, dec = 2) => {
+    if (x == null || isNaN(x)) return '—';
+    const sign = x > 0 ? '+' : '';
+    return `${sign}${(x * 100).toFixed(dec)}%`;
+  };
+  const fmtCompact = (n) => {
+    if (n == null || n === 0) return '—';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  };
+
+  function renderScreener() {
+    const tbody = document.getElementById('screenerBody');
+    const count = document.getElementById('screenerCount');
+    const ths = document.querySelectorAll('.screener-table th');
+
+    const filtered = ALL_AGGREGATES.filter((r) => {
+      if (!screenerState.years.has(r.year)) return false;
+      if (!screenerState.months.has(r.month)) return false;
+      if (screenerState.retMin != null && r.totalReturn * 100 < screenerState.retMin) return false;
+      if (screenerState.retMax != null && r.totalReturn * 100 > screenerState.retMax) return false;
+      if (screenerState.medMin != null && r.median * 100 < screenerState.medMin) return false;
+      if (screenerState.medMax != null && r.median * 100 > screenerState.medMax) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      const av = a[screenerState.sortCol];
+      const bv = b[screenerState.sortCol];
+      if (screenerState.sortCol === 'key') {
+        return screenerState.sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      }
+      return screenerState.sortDir === 'asc' ? av - bv : bv - av;
+    });
+
+    count.textContent = `${filtered.length} mes${filtered.length === 1 ? '' : 'es'} (de ${ALL_AGGREGATES.length})`;
+
+    ths.forEach((th) => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.dataset.col === screenerState.sortCol) {
+        th.classList.add(screenerState.sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin meses que cumplan los filtros.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map((r) => {
+      const cls = (v) => (v >= 0 ? 'up' : 'down');
+      return `
+        <tr>
+          <td class="month-cell">${r.monthName} ${r.year}</td>
+          <td class="${cls(r.totalReturn)}">${fmtPctSigned(r.totalReturn)}</td>
+          <td class="${cls(r.median)}">${fmtPctSigned(r.median)}</td>
+          <td>${(r.std * 100).toFixed(2)}%</td>
+          <td class="${cls(r.bestDay)}">${fmtPctSigned(r.bestDay)}</td>
+          <td class="${cls(r.worstDay)}">${fmtPctSigned(r.worstDay)}</td>
+          <td>${r.days}</td>
+          <td>${fmtCompact(r.volume)}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function initScreener() {
+    const yearList = document.getElementById('filterYears');
+    yearList.innerHTML = ALL_YEARS.map((y) => `<span class="chip active" data-year="${y}">${y}</span>`).join('');
+    yearList.addEventListener('click', (e) => {
+      const c = e.target.closest('.chip');
+      if (!c) return;
+      const y = +c.dataset.year;
+      if (screenerState.years.has(y)) screenerState.years.delete(y);
+      else screenerState.years.add(y);
+      c.classList.toggle('active');
+      renderScreener();
+    });
+
+    const monthList = document.getElementById('filterMonths');
+    monthList.innerHTML = MONTH_SHORT.map((n, i) => `<span class="chip active" data-month="${i + 1}">${n}</span>`).join('');
+    monthList.addEventListener('click', (e) => {
+      const c = e.target.closest('.chip');
+      if (!c) return;
+      const m = +c.dataset.month;
+      if (screenerState.months.has(m)) screenerState.months.delete(m);
+      else screenerState.months.add(m);
+      c.classList.toggle('active');
+      renderScreener();
+    });
+
+    document.querySelectorAll('.chip-actions button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        if (action === 'year-all') {
+          screenerState.years = new Set(ALL_YEARS);
+          document.querySelectorAll('#filterYears .chip').forEach((c) => c.classList.add('active'));
+        } else if (action === 'year-none') {
+          screenerState.years = new Set();
+          document.querySelectorAll('#filterYears .chip').forEach((c) => c.classList.remove('active'));
+        } else if (action === 'month-all') {
+          screenerState.months = new Set(ALL_MONTHS);
+          document.querySelectorAll('#filterMonths .chip').forEach((c) => c.classList.add('active'));
+        } else if (action === 'month-none') {
+          screenerState.months = new Set();
+          document.querySelectorAll('#filterMonths .chip').forEach((c) => c.classList.remove('active'));
+        }
+        renderScreener();
+      });
+    });
+
+    ['retMin', 'retMax', 'medMin', 'medMax'].forEach((id) => {
+      const el = document.getElementById(id);
+      el.addEventListener('input', () => {
+        const v = el.value === '' ? null : parseFloat(el.value);
+        screenerState[id] = (v == null || isNaN(v)) ? null : v;
+        renderScreener();
+      });
+    });
+
+    document.querySelectorAll('.screener-table th').forEach((th) => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (screenerState.sortCol === col) {
+          screenerState.sortDir = screenerState.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          screenerState.sortCol = col;
+          screenerState.sortDir = col === 'key' ? 'asc' : 'desc';
+        }
+        renderScreener();
+      });
+    });
+
+    document.getElementById('screenerReset').addEventListener('click', () => {
+      screenerState.years = new Set(ALL_YEARS);
+      screenerState.months = new Set(ALL_MONTHS);
+      screenerState.retMin = screenerState.retMax = null;
+      screenerState.medMin = screenerState.medMax = null;
+      screenerState.sortCol = 'totalReturn';
+      screenerState.sortDir = 'desc';
+      document.querySelectorAll('#filterYears .chip, #filterMonths .chip').forEach((c) => c.classList.add('active'));
+      ['retMin','retMax','medMin','medMax'].forEach((id) => { document.getElementById(id).value = ''; });
+      renderScreener();
+    });
+
+    renderScreener();
+  }
+
+  initScreener();
+})();
+</script>
+</body>
+</html>
